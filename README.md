@@ -40,7 +40,7 @@ The user doesn't need to configure any of this. It works out of the box.
 ## Main flow
 
 ```
-JSON export → scripts → ChromaDB vectordb → Deepseek API → webapp
+JSON export → scripts → ChromaDB vectordb → LLM API → webapp
 ```
 
 ---
