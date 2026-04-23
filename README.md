@@ -111,7 +111,7 @@ Currently in active development. It works, but is still in testing phase. The in
 
 ## License
 
-*(to be chosen — MIT, Apache 2.0, AGPL?)*
+*Apache 2.0*
 
 ---
 
