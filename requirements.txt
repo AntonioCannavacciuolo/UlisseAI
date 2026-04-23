@@ -1,0 +1,10 @@
+chromadb
+sentence-transformers
+python-dotenv
+flask
+flask-cors
+tiktoken
+openai
+watchdog
+nltk
+requests

@@ -1,0 +1,30 @@
+__pycache__/
+*.pyc
+.env
+venv/
+.venv/
+node_modules/
+dist/
+corpus/
+*.egg-info/
+.DS_Store
+
+# Corpus - dati personali e pesanti
+corpus/
+vectordb/
+vault/
+
+# Logs
+logs/
+
+# Environment
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# HuggingFace models cache
+hf_cache/
+OpenAIChats/
