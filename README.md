@@ -6,7 +6,7 @@
 
 ## What it is
 
-Ulisse is a system that allows a language model to **remember what you told it**, even across different sessions. It's not a chatbot. It's an architecture that turns a generic LLM into an entity with continuous memory, capable of updating its own knowledge as it talks to you.
+Ulisse is a system that allows a language model to **remember what you told it**, even across different sessions. It's not only a chatbot. It's an architecture that turns a generic LLM into an entity with continuous memory, capable of updating its own knowledge as it talks to you.
 
 It works with:
 - Local models (Ollama, LM Studio)
