@@ -5,12 +5,17 @@ venv/
 .venv/
 node_modules/
 dist/
-corpus/
 *.egg-info/
 .DS_Store
 
 # Corpus - dati personali e pesanti
-corpus/
+corpus/files/
+corpus/sessions/
+corpus/new_conversations.jsonl
+corpus/system_prompt.txt
+corpus/*.json
+corpus/*.jsonl
+corpus/*.md
 vectordb/
 vault/
 
