@@ -92,11 +92,13 @@ if str(project_root) not in sys.path:
 
 # Load optional Uninet plugin
 _uninet_context_fn = None
+extra_tools = []
+extra_tool_handlers = {}
+
 try:
     from scripts.uninet_plugin import register_uninet_routes, get_uninet_context
     _uninet_context_fn = get_uninet_context
-    register_uninet_routes(app, corpus_dir)
-    print("Uninet plugin loaded.")
+    register_uninet_routes(app, corpus_dir, extra_tools, extra_tool_handlers)
 except ImportError:
     print("Uninet plugin not found. Skipping.")
 
@@ -282,9 +284,26 @@ def chat():
             model="deepseek-chat",
             messages=messages,
             temperature=0.7,
-            max_tokens=1000
+            max_tokens=4000,
+            tools=extra_tools if extra_tools else None
         )
-        assistant_response = response.choices[0].message.content
+        assistant_message = response.choices[0].message
+
+        # Handle tool calls
+        tool_results = []
+        if hasattr(assistant_message, 'tool_calls') and assistant_message.tool_calls:
+            for tool_call in assistant_message.tool_calls:
+                handler = extra_tool_handlers.get(tool_call.function.name)
+                if handler:
+                    result = handler(tool_call.function.arguments)
+                    tool_results.append(result)
+
+        assistant_response = assistant_message.content or ""
+        if tool_results:
+            if assistant_response:
+                assistant_response += "\n\n" + "\n".join(tool_results)
+            else:
+                assistant_response = "\n".join(tool_results)
         
     except Exception as e:
         print(f"Deepseek API error: {e}")
