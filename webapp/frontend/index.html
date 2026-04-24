@@ -1,0 +1,3043 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ULISSE BRAIN</title>
+    <style>
+        :root {
+            --bg: #0a0a1a;
+            --cyan: #00d4ff;
+            --gold: #ffd700;
+            --white: #ffffff;
+            --dblue: rgba(0, 80, 150, .3);
+            --abg: rgba(0, 0, 0, .4);
+            --grid: rgba(0, 212, 255, .03);
+            --glow: 0 0 10px rgba(0, 212, 255, .5);
+            --glow-white: 0 0 20px rgba(255, 255, 255, 0.8)
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: var(--bg);
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif
+        }
+
+        #app {
+            display: flex;
+            width: 100vw;
+            height: 100vh
+        }
+
+        #left-panel {
+            width: 40%;
+            position: relative;
+            border-right: 1px solid rgba(0, 212, 255, .2);
+            box-shadow: inset -10px 0 20px rgba(0, 212, 255, .05);
+            background: radial-gradient(circle at center, #0d0d26, var(--bg))
+        }
+
+        #left-panel::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 1
+        }
+
+        #brain-graph {
+            width: 100%;
+            height: 100%;
+            display: block;
+            position: relative;
+            z-index: 2;
+            cursor: grab
+        }
+
+        #brain-graph:active {
+            cursor: grabbing
+        }
+
+        #graph-tooltip {
+            position: absolute;
+            pointer-events: none;
+            background: rgba(0, 10, 30, .92);
+            border: 1px solid var(--cyan);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font: 12px 'Courier New', monospace;
+            white-space: nowrap;
+            display: none;
+            z-index: 10;
+            box-shadow: 0 0 12px rgba(0, 212, 255, .3)
+        }
+
+        #node-info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 10, 30, .88);
+            border: 1px solid rgba(0, 212, 255, .3);
+            border-radius: 6px;
+            padding: 14px 18px;
+            font: 13px 'Courier New', monospace;
+            color: rgba(255, 255, 255, .8);
+            z-index: 10;
+            display: none;
+            max-width: 280px;
+            backdrop-filter: blur(8px)
+        }
+
+        .ni-title {
+            color: var(--cyan);
+            font-weight: bold;
+            margin-bottom: 4px;
+            font-size: 14px
+        }
+
+        .ni-meta {
+            color: rgba(255, 255, 255, .5);
+            font-size: 11px;
+            margin-bottom: 2px
+        }
+
+        .ni-conns {
+            color: rgba(255, 255, 255, .45);
+            font-size: 11px;
+            margin-top: 4px
+        }
+
+        #right-panel {
+            width: 60%;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(to bottom, #0a0a1a, #05050f)
+        }
+
+        .chat-header {
+            position: relative;
+            padding: 25px 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(0, 212, 255, .15);
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: 6px;
+            color: var(--cyan);
+            text-shadow: var(--glow);
+            text-transform: uppercase;
+            background: rgba(0, 0, 0, .3);
+            backdrop-filter: blur(5px);
+            font-family: 'Courier New', monospace
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 14px 18px;
+            border-radius: 8px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, .2);
+            font-size: 15px
+        }
+
+        .message>.content {
+            white-space: pre-wrap
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: var(--dblue);
+            border: 1px solid rgba(0, 212, 255, .2);
+            border-top-right-radius: 0
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+            background: var(--abg);
+            border-left: 3px solid var(--cyan);
+            border-top-left-radius: 0
+        }
+
+        .sources {
+            font-size: 11px;
+            color: rgba(0, 212, 255, .6);
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(0, 212, 255, .2);
+            font-family: 'Courier New', monospace
+        }
+
+        .chat-input-area {
+            padding: 20px 30px;
+            border-top: 1px solid rgba(0, 212, 255, .15);
+            display: flex;
+            gap: 15px;
+            background: rgba(0, 0, 0, .3)
+        }
+
+        #message-input {
+            flex: 1;
+            background: rgba(10, 10, 26, .8);
+            border: 1px solid rgba(0, 212, 255, .3);
+            color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            outline: none;
+            font-family: inherit;
+            font-size: 15px;
+            transition: all .3s;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, .5)
+        }
+
+        #message-input:focus {
+            border-color: var(--cyan);
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, .5), 0 0 10px rgba(0, 212, 255, .2)
+        }
+
+        button {
+            background: transparent;
+            border: 1px solid var(--cyan);
+            color: var(--cyan);
+            padding: 0 25px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all .3s;
+            font-family: 'Courier New', monospace
+        }
+
+        button:hover {
+            background: rgba(0, 212, 255, .1);
+            box-shadow: var(--glow)
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+            box-shadow: none;
+            background: transparent
+        }
+
+        @keyframes typing {
+
+            0%,
+            100% {
+                opacity: .2
+            }
+
+            50% {
+                opacity: 1
+            }
+        }
+
+        .typing-dot {
+            animation: typing 1.5s infinite;
+            font-size: 20px;
+            letter-spacing: 2px
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: .5s
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 1s
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 212, 255, .2);
+            border-radius: 3px
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 212, 255, .5)
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-group label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            background: rgba(10, 10, 26, 0.8);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            color: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            border-color: var(--cyan);
+            outline: none;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        /* --- NEW CHAT UX STYLES --- */
+        .chat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 25px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        #new-chat-btn {
+            font-size: 13px;
+            padding: 8px 15px;
+            background: rgba(0, 212, 255, 0.05);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            text-transform: none;
+            letter-spacing: 0;
+            color: var(--cyan);
+        }
+
+        #new-chat-btn:hover {
+            background: rgba(0, 212, 255, 0.15);
+        }
+
+        .chat-input-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+
+        #file-preview-area {
+            display: none;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 0 30px 10px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .file-chip {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 4px;
+            padding: 5px 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--cyan);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .file-chip .remove-file {
+            cursor: pointer;
+            color: #ff4444;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        #message-input {
+            resize: none;
+            overflow-y: hidden;
+            min-height: 50px;
+            max-height: 150px;
+            line-height: 1.4;
+        }
+
+        .input-actions {
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        #attach-btn {
+            padding: 0 15px;
+            font-size: 20px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #char-count {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.3);
+            text-align: right;
+            padding-top: 5px;
+        }
+
+        #stop-btn {
+            display: none;
+            background: rgba(255, 68, 68, 0.1);
+            border-color: #ff4444;
+            color: #ff4444;
+        }
+
+        #stop-btn:hover {
+            background: rgba(255, 68, 68, 0.2);
+            box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+        }
+
+        .message {
+            transition: transform 0.2s;
+        }
+
+        .message:hover .message-actions {
+            opacity: 1;
+        }
+
+        .message-actions {
+            position: absolute;
+            top: -15px;
+            right: 10px;
+            display: flex;
+            gap: 5px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 5;
+        }
+
+        .msg-action-btn {
+            background: #0a0a1a;
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            color: var(--cyan);
+            padding: 4px 8px;
+            font-size: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        .msg-action-btn:hover {
+            background: var(--cyan);
+            color: #0a0a1a;
+        }
+
+        .timestamp {
+            position: absolute;
+            bottom: -18px;
+            right: 5px;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.3);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .message:hover .timestamp {
+            opacity: 1;
+        }
+
+        #scroll-bottom-btn {
+            position: fixed;
+            bottom: 120px;
+            right: 30px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(0, 10, 30, 0.8);
+            border: 1px solid var(--cyan);
+            color: var(--cyan);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+            box-shadow: var(--glow);
+            font-size: 20px;
+            transition: all 0.3s;
+        }
+
+        #scroll-bottom-btn:hover {
+            transform: translateY(-5px);
+            background: var(--cyan);
+            color: #0a0a1a;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            gap: 30px;
+            color: rgba(255, 255, 255, 0.6);
+            animation: fadeIn 0.8s ease;
+        }
+
+        .empty-state h2 {
+            font-size: 24px;
+            color: var(--cyan);
+            text-shadow: var(--glow);
+            margin: 0;
+        }
+
+        .suggestion-chips {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            max-width: 500px;
+        }
+
+        .suggestion-chip {
+            background: rgba(0, 212, 255, 0.05);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .suggestion-chip:hover {
+            background: rgba(0, 212, 255, 0.15);
+            border-color: var(--cyan);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 212, 255, 0.1);
+        }
+
+        .inline-edit-area {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .inline-edit-textarea {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--cyan);
+            color: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            resize: none;
+            font-family: inherit;
+        }
+
+        .edit-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .thumbnail-preview {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 4px;
+            margin-top: 10px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .file-attachment {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            border-left: 2px solid var(--cyan);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* --- SESSION PANEL --- */
+        #session-panel {
+            position: fixed;
+            right: -450px;
+            top: 0;
+            width: 450px;
+            height: 100vh;
+            background: rgba(5, 5, 15, 0.95);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid rgba(0, 212, 255, 0.2);
+            z-index: 1000;
+            transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        #session-panel.open {
+            right: 0;
+        }
+
+        .sp-header {
+            padding: 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #sp-title {
+            font-size: 22px;
+            color: var(--cyan);
+            margin: 0 0 10px 0;
+            cursor: pointer;
+            border: 1px solid transparent;
+            padding: 5px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        #sp-title:hover {
+            border-color: rgba(0, 212, 255, 0.3);
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .sp-meta {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.4);
+            font-family: 'Courier New', monospace;
+        }
+
+        .sp-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .sp-history-preview {
+            border-left: 2px solid rgba(0, 212, 255, 0.1);
+            padding-left: 15px;
+            margin-bottom: 20px;
+        }
+
+        .sp-msg {
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+
+        .sp-msg .role {
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 10px;
+            margin-bottom: 3px;
+            display: block;
+            letter-spacing: 1px;
+        }
+
+        .sp-msg.user .role {
+            color: var(--cyan);
+        }
+
+        .sp-msg.assistant .role {
+            color: #888;
+        }
+
+        .sp-msg .content {
+            opacity: 0.8;
+        }
+
+        .sp-actions {
+            padding: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .sp-btn {
+            width: 100%;
+            padding: 12px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .sp-btn-primary {
+            background: var(--cyan);
+            color: #000;
+            border: none;
+        }
+
+        .sp-btn-danger {
+            border-color: #ff4444;
+            color: #ff4444;
+        }
+
+        .sp-btn-danger:hover {
+            background: rgba(255, 68, 68, 0.1);
+            box-shadow: 0 0 15px rgba(255, 68, 68, 0.3);
+        }
+
+        .related-section h4 {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.3);
+            margin: 20px 0 10px 0;
+            letter-spacing: 1px;
+        }
+
+        .related-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .related-item {
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .related-item:hover {
+            background: rgba(0, 212, 255, 0.08);
+            border-color: rgba(0, 212, 255, 0.2);
+            transform: translateX(5px);
+        }
+    </style>
+    <style>
+        :root {
+            --bg: #0a0a1a;
+            --cyan: #00d4ff;
+            --dblue: rgba(0, 80, 150, .3);
+            --abg: rgba(0, 0, 0, .4);
+            --grid: rgba(0, 212, 255, .03);
+            --glow: 0 0 10px rgba(0, 212, 255, .5)
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: var(--bg);
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif
+        }
+
+        #app {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #left-panel {
+            width: 40%;
+            position: relative;
+            border-right: 1px solid rgba(0, 212, 255, .2);
+            box-shadow: inset -10px 0 20px rgba(0, 212, 255, .05);
+            background: radial-gradient(circle at center, #0d0d26, var(--bg));
+            min-width: 0;
+        }
+
+        #left-panel::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(var(--grid) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 1
+        }
+
+        #brain-graph {
+            width: 100%;
+            height: 100%;
+            display: block;
+            position: relative;
+            z-index: 2;
+            cursor: grab
+        }
+
+        #brain-graph:active {
+            cursor: grabbing
+        }
+
+        #graph-tooltip {
+            position: absolute;
+            pointer-events: none;
+            background: rgba(0, 10, 30, .92);
+            border: 1px solid var(--cyan);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font: 12px 'Courier New', monospace;
+            white-space: nowrap;
+            display: none;
+            z-index: 10;
+            box-shadow: 0 0 12px rgba(0, 212, 255, .3)
+        }
+
+        #node-info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 10, 30, .88);
+            border: 1px solid rgba(0, 212, 255, .3);
+            border-radius: 6px;
+            padding: 14px 18px;
+            font: 13px 'Courier New', monospace;
+            color: rgba(255, 255, 255, .8);
+            z-index: 10;
+            display: none;
+            max-width: 280px;
+            backdrop-filter: blur(8px)
+        }
+
+        .ni-title {
+            color: var(--cyan);
+            font-weight: bold;
+            margin-bottom: 4px;
+            font-size: 14px
+        }
+
+        .ni-meta {
+            color: rgba(255, 255, 255, .5);
+            font-size: 11px;
+            margin-bottom: 2px
+        }
+
+        .ni-conns {
+            color: rgba(255, 255, 255, .45);
+            font-size: 11px;
+            margin-top: 4px
+        }
+
+        #right-panel {
+            width: 60%;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(to bottom, #0a0a1a, #05050f);
+            min-width: 0;
+        }
+
+        .chat-header {
+            position: relative;
+            padding: 25px 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(0, 212, 255, .15);
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: 6px;
+            color: var(--cyan);
+            text-shadow: var(--glow);
+            text-transform: uppercase;
+            background: rgba(0, 0, 0, .3);
+            backdrop-filter: blur(5px);
+            font-family: 'Courier New', monospace
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 14px 18px;
+            border-radius: 8px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, .2);
+            font-size: 15px
+        }
+
+        .message>.content {
+            white-space: pre-wrap
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: var(--dblue);
+            border: 1px solid rgba(0, 212, 255, .2);
+            border-top-right-radius: 0
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+            background: var(--abg);
+            border-left: 3px solid var(--cyan);
+            border-top-left-radius: 0
+        }
+
+        .sources {
+            font-size: 11px;
+            color: rgba(0, 212, 255, .6);
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(0, 212, 255, .2);
+            font-family: 'Courier New', monospace
+        }
+
+        .chat-input-area {
+            padding: 20px 30px;
+            border-top: 1px solid rgba(0, 212, 255, .15);
+            display: flex;
+            gap: 15px;
+            background: rgba(0, 0, 0, .3)
+        }
+
+        #message-input {
+            flex: 1;
+            min-width: 0;
+            background: rgba(10, 10, 26, .8);
+            border: 1px solid rgba(0, 212, 255, .3);
+            color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            outline: none;
+            font-family: inherit;
+            font-size: 15px;
+            transition: all .3s;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, .5)
+        }
+
+        #message-input:focus {
+            border-color: var(--cyan);
+            box-shadow:
+                inset 0 2px 5px rgba(0, 0, 0, .5),
+                0 0 10px rgba(0, 212, 255, .2)
+        }
+
+        button {
+            background: transparent;
+            border: 1px solid var(--cyan);
+            color: var(--cyan);
+            padding: 0 25px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all .3s;
+            font-family: 'Courier New', monospace
+        }
+
+        button:hover {
+            background: rgba(0, 212, 255, .1);
+            box-shadow: var(--glow)
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+            box-shadow: none;
+            background: transparent
+        }
+
+        @keyframes typing {
+
+            0%,
+            100% {
+                opacity: .2
+            }
+
+            50% {
+                opacity: 1
+            }
+        }
+
+        .typing-dot {
+            animation: typing 1.5s infinite;
+            font-size: 20px;
+            letter-spacing: 2px
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: .5s
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 1s
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 212, 255, .2);
+            border-radius: 3px
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 212, 255, .5)
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-group label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            background: rgba(10, 10, 26, 0.8);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            color: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: inherit;
+            width: 100%;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            border-color: var(--cyan);
+            outline: none;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* ===================================================== */
+        /* TABLET */
+        /* ===================================================== */
+
+        @media (max-width: 1024px) {
+
+            #left-panel {
+                width: 45%;
+            }
+
+            #right-panel {
+                width: 55%;
+            }
+
+            .chat-header {
+                font-size: 22px;
+                letter-spacing: 4px;
+            }
+
+            .chat-messages {
+                padding: 20px;
+            }
+
+            .message {
+                max-width: 90%;
+            }
+        }
+
+        /* ===================================================== */
+        /* MOBILE */
+        /* ===================================================== */
+
+        @media (max-width: 768px) {
+
+            body {
+                overflow: auto;
+            }
+
+            #app {
+                flex-direction: column;
+                min-height: 100vh;
+            }
+
+            #left-panel {
+                width: 100%;
+                height: 40vh;
+                min-height: 280px;
+                border-right: none;
+                border-bottom: 1px solid rgba(0, 212, 255, .2);
+            }
+
+            #right-panel {
+                width: 100%;
+                height: 60vh;
+                min-height: 0;
+            }
+
+            .chat-header {
+                font-size: 18px;
+                letter-spacing: 2px;
+                padding: 18px 12px 50px;
+            }
+
+            #uninet-indicator {
+                top: auto !important;
+                bottom: 12px;
+                right: 12px;
+                font-size: 11px !important;
+            }
+
+            .chat-messages {
+                padding: 15px;
+                gap: 15px;
+            }
+
+            .message {
+                max-width: 100%;
+                font-size: 14px;
+                padding: 12px 14px;
+            }
+
+            .chat-input-area {
+                padding: 12px;
+                gap: 10px;
+            }
+
+            #message-input {
+                font-size: 14px;
+                padding: 12px;
+            }
+
+            #send-btn {
+                padding: 0;
+                width: 42px;
+                height: 42px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
+                min-width: 42px;
+            }
+
+            #message-input {
+                font-size: 16px;
+                /* Prevent iOS zoom on focus */
+                padding: 12px;
+                min-height: 42px;
+            }
+
+            #refresh-graph-btn {
+                top: 12px !important;
+                left: 12px !important;
+                font-size: 10px !important;
+                padding: 6px 10px !important;
+            }
+
+            #node-info {
+                left: 10px;
+                right: 10px;
+                bottom: 10px;
+                max-width: none;
+                width: auto;
+                font-size: 12px;
+                padding: 10px;
+            }
+
+            .modal-actions {
+                flex-direction: column;
+            }
+
+            .modal-actions button {
+                width: 100%;
+                height: 42px;
+            }
+        }
+
+        /* ===================================================== */
+        /* VERY SMALL DEVICES */
+        /* ===================================================== */
+
+        @media (max-width: 480px) {
+
+            .chat-header {
+                font-size: 15px;
+                letter-spacing: 1px;
+            }
+
+            .chat-input-area {
+                flex-direction: column;
+            }
+
+            #send-btn {
+                height: 42px;
+            }
+
+            #message-input {
+                width: 100%;
+            }
+
+            #left-panel {
+                height: 35vh;
+            }
+
+            #right-panel {
+                height: 65vh;
+            }
+
+            .input-actions {
+                width: 100%;
+                gap: 5px;
+            }
+
+            #message-input {
+                padding: 10px;
+            }
+
+            #attach-btn {
+                padding: 0 10px;
+                font-size: 18px;
+            }
+
+            .empty-state h2 {
+                font-size: 18px;
+            }
+
+            .suggestion-chip {
+                padding: 8px 15px;
+                font-size: 12px;
+            }
+        }
+
+        /* ===================================================== */
+        /* MEMORY VIEW OVERLAY */
+        /* ===================================================== */
+        #memory-view {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #050510;
+            z-index: 9999;
+            flex-direction: column;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        #memory-view.open {
+            display: flex;
+            opacity: 1;
+        }
+
+        #memory-view-header {
+            padding: 20px 40px;
+            background: rgba(0, 0, 0, 0.4);
+            border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .mv-stats {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: var(--cyan);
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+
+        .mv-search-container {
+            flex: 1;
+            max-width: 400px;
+            margin: 0 40px;
+        }
+
+        #mv-search-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 30px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        #mv-search-input:focus {
+            border-color: var(--cyan);
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
+        }
+
+        #mv-close-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 8px 20px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        #mv-close-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #fff;
+        }
+
+        #memory-view-main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        #memory-graph-container {
+            width: 60%;
+            position: relative;
+            background: radial-gradient(circle at center, #0a0a20, #050510);
+        }
+
+        #memory-graph-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #memory-detail-panel {
+            width: 40%;
+            background: rgba(10, 10, 25, 0.8);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 40px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #mv-detail-empty {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.3);
+            text-align: center;
+            font-family: 'Courier New', monospace;
+        }
+
+        .mv-detail-header h2 {
+            margin: 0 0 10px 0;
+            color: var(--cyan);
+            font-size: 28px;
+            outline: none;
+        }
+
+        .mv-detail-dates {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.4);
+            margin-bottom: 25px;
+        }
+
+        .mv-detail-stats {
+            background: rgba(0, 212, 255, 0.05);
+            border: 1px solid rgba(0, 212, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 30px;
+        }
+
+        .mv-detail-preview {
+            flex: 1;
+            margin-bottom: 30px;
+        }
+
+        .mv-preview-msg {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            border-left: 2px solid transparent;
+        }
+
+        .mv-preview-msg.user {
+            border-left-color: var(--cyan);
+        }
+
+        .mv-preview-msg.assistant {
+            border-left-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .mv-preview-msg .role {
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 10px;
+            display: block;
+            margin-bottom: 4px;
+            opacity: 0.5;
+        }
+
+        .mv-detail-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .mv-btn {
+            padding: 14px;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .mv-btn-primary {
+            background: var(--cyan);
+            color: #000;
+            border: none;
+        }
+
+        .mv-btn-primary:hover {
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .mv-btn-danger {
+            border-color: #ff4444;
+            color: #ff4444;
+        }
+
+        .mv-btn-danger:hover {
+            background: rgba(255, 68, 68, 0.1);
+        }
+
+        @media (max-width: 1024px) {
+            #memory-view-main {
+                flex-direction: column;
+            }
+
+            #memory-graph-container {
+                width: 100%;
+                height: 50%;
+            }
+
+            #memory-detail-panel {
+                width: 100%;
+                height: 50%;
+                border-left: none;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+            }
+        }
+
+    </style>
+
+</head>
+
+<body>
+    <div id="app">
+        <div id="left-panel">
+            <button id="refresh-graph-btn"
+                style="position:absolute; top:20px; left:20px; z-index:10; font-size:12px; padding: 8px 12px; background:rgba(0,10,30,0.8); backdrop-filter:blur(5px)">REFRESH
+                GRAPH</button>
+            <canvas id="brain-graph"></canvas>
+            <div id="graph-tooltip"></div>
+            <div id="node-info">
+                <div class="ni-title"></div>
+                <div class="ni-meta" id="ni-type"></div>
+                <div class="ni-meta" id="ni-weight"></div>
+                <div class="ni-conns"></div>
+            </div>
+        </div>
+        <div id="right-panel">
+            <div class="chat-header">
+                <div class="header-left">
+                    <button id="memoria-btn"
+                        style="font-size: 13px; padding: 8px 15px; background: rgba(0, 212, 255, 0.05); border: 1px solid rgba(0, 212, 255, 0.3); text-transform: none; letter-spacing: 0; color: var(--cyan); margin-right: 10px;">🧠
+                        Memoria</button>
+                    <button id="new-chat-btn">🗑️ Nuova chat</button>
+                </div>
+                ULISSE BRAIN
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="empty-state" id="empty-state">
+                    <h2>Cosa vuoi esplorare oggi, Toni?</h2>
+                    <div class="suggestion-chips">
+                        <div class="suggestion-chip" onclick="useSuggestion('Cosa ricordi di me?')">Cosa ricordi di me?
+                        </div>
+                        <div class="suggestion-chip" onclick="useSuggestion('Parliamo di un progetto')">Parliamo di un
+                            progetto</div>
+                        <div class="suggestion-chip" onclick="useSuggestion('Cosa hai imparato oggi?')">Cosa hai
+                            imparato oggi?</div>
+                    </div>
+                </div>
+            </div>
+            <button id="scroll-bottom-btn">↓</button>
+            <div id="file-preview-area"></div>
+            <div class="chat-input-area">
+                <div class="chat-input-container">
+                    <div class="input-actions">
+                        <button id="attach-btn" title="Allega file (Img, PDF, TXT, MD, JSON)">📎</button>
+                        <textarea id="message-input" placeholder="Invia un messaggio alla rete neurale..."
+                            autocomplete="off" rows="1"></textarea>
+                        <button id="send-btn" title="Invia">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12 5 19 12 12 19"></polyline>
+                            </svg>
+                        </button>
+                        <button id="stop-btn">⏹ STOP</button>
+                    </div>
+                    <div id="char-count">0 caratteri</div>
+                </div>
+                <input type="file" id="file-input" style="display:none"
+                    accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.json">
+            </div>
+        </div>
+    </div>
+
+    <div id="session-panel">
+        <div class="sp-header">
+            <h2 id="sp-title" contenteditable="true">Titolo Sessione</h2>
+            <div class="sp-meta">Creato il: <span id="sp-date">--/--/----</span></div>
+        </div>
+        <div class="sp-body">
+            <div class="sp-history-preview" id="sp-history-preview">
+                <!-- Messages will be injected here -->
+            </div>
+            <div class="related-section">
+                <h4>Chat correlate</h4>
+                <div class="related-list" id="sp-related-list"></div>
+            </div>
+        </div>
+        <div class="sp-actions">
+            <button id="sp-continue-btn" class="sp-btn sp-btn-primary">▶ CONTINUA QUESTA CHAT</button>
+            <button id="sp-delete-btn" class="sp-btn sp-btn-danger">🗑️ ELIMINA SESSIONE</button>
+            <button id="sp-close-btn" class="sp-btn"
+                style="border-color:rgba(255,255,255,0.2); color:#888;">CHIUDI</button>
+        </div>
+    </div>
+
+    <!-- Memory View Overlay -->
+    <div id="memory-view" class="overlay">
+        <div id="memory-view-header">
+            <div id="memory-view-title">SYNTHETIC MEMORY</div>
+            <div id="mv-stats-bar" style="font-size: 11px; opacity: 0.6; font-family: 'Courier New', monospace;">
+                🧠 Caricamento dati...
+            </div>
+            <div style="flex: 1"></div>
+            <div id="mv-search-container">
+                <input type="text" id="mv-search-input" placeholder="Cerca tra ricordi e concetti...">
+            </div>
+            <div id="mv-close-btn">&times;</div>
+        </div>
+        <div id="memory-view-main">
+            <div id="memory-graph-container">
+                <canvas id="memory-graph-canvas"></canvas>
+            </div>
+            <div id="memory-detail-panel">
+                <div id="mv-detail-empty">
+                    <div style="font-size: 40px; margin-bottom: 20px; opacity: 0.3;">🧠</div>
+                </div>
+
+                </div>
+
+                <div id="mv-detail-content" style="display:none">
+                    <div class="mv-detail-header">
+                        <h2 id="mv-detail-title" contenteditable="true">Titolo</h2>
+                        <div class="mv-detail-dates" id="mv-detail-dates">
+                            <!-- Date info -->
+                        </div>
+                    </div>
+
+                    <div id="mv-session-only-info">
+                        <div class="mv-detail-stats" id="mv-detail-stats">
+                            0 messaggi · 0 parole
+                        </div>
+                        <div class="mv-detail-preview" id="mv-detail-preview">
+                            <!-- Message previews -->
+                        </div>
+                    </div>
+
+                    <div id="mv-concept-only-info" style="display:none">
+                        <div id="mv-concept-body" class="mv-synthetic-text"
+                            style="max-height: none; overflow: visible;">
+                            <!-- Concept content -->
+                        </div>
+                    </div>
+
+                    <div class="mv-detail-actions">
+                        <div id="mv-session-actions">
+                            <button id="mv-open-chat-btn" class="mv-btn mv-btn-primary">▶ APRI QUESTA CHAT</button>
+                            <button id="mv-delete-btn" class="mv-btn mv-btn-danger">🗑️ ELIMINA</button>
+                        </div>
+                        <div id="mv-concept-actions" style="display:none">
+                            <div style="font-size: 11px; opacity: 0.5; font-style: italic;">
+                                Questo è un concetto sintetizzato dalla tua memoria a lungo termine.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const Graph = (() => {
+            const canvas = document.getElementById('brain-graph'), ctx = canvas.getContext('2d');
+            const tooltip = document.getElementById('graph-tooltip'), infoPanel = document.getElementById('node-info');
+            const MAX = 500;
+            let W, H;
+            // Data maps for O(1) lookups
+            const nodeMap = new Map(); // id -> node
+            const edgeList = [];       // {from,to,type}
+            // Camera
+            let cam = { x: 0, y: 0, zoom: 1 }, dragging = null, panning = false, panS = { x: 0, y: 0 };
+            let hoveredNode = null, selectedNode = null;
+            // Reasoning path state
+            let rpNodes = [], rpStart = 0, rpDur = 3000;
+            let thinkingInterval = null;
+            // Type colors
+            const TYPE_COLORS = { session: '#00d4ff', concept: '#ffd700', system: '#aa66ff', core: '#00d4ff', memory: '#44cc88', unknown: '#888899' };
+            function typeColor(t) { return TYPE_COLORS[t] || TYPE_COLORS.unknown }
+            // Coordinate transforms
+            function s2w(sx, sy) { return { x: (sx - W / 2) / cam.zoom + cam.x, y: (sy - H / 2) / cam.zoom + cam.y } }
+            function w2s(wx, wy) { return { x: (wx - cam.x) * cam.zoom + W / 2, y: (wy - cam.y) * cam.zoom + H / 2 } }
+            function hitNode(sx, sy) {
+                const w = s2w(sx, sy); const hr = 16 / cam.zoom; let best = null;
+                nodeMap.forEach(n => { const dx = n.x - w.x, dy = n.y - w.y; if (dx * dx + dy * dy < hr * hr) best = n }); return best
+            }
+            function getConns(node) { const s = new Set(); edgeList.forEach(e => { if (e.from === node.id) s.add(e.to); if (e.to === node.id) s.add(e.from) }); return s }
+            // --- Init ---
+            function initGraph() {
+                resize(); window.addEventListener('resize', resize);
+                bindEvents(); requestAnimationFrame(loop);
+                setInterval(applyDecay, 10000);
+            }
+            function resize() { W = canvas.parentElement.clientWidth; H = canvas.parentElement.clientHeight; canvas.width = W; canvas.height = H }
+            // --- Node CRUD ---
+            function createNode(id, type, x, y) {
+                if (nodeMap.has(id)) { const n = nodeMap.get(id); if (type && type !== 'unknown') n.type = type; return n }
+                if (nodeMap.size >= MAX) pruneWeakest();
+                const n = {
+                    id, type: type || 'unknown', label: id, x: x !== undefined ? x : (Math.random() - .5) * 140,
+                    y: y !== undefined ? y : (Math.random() - .5) * 140, vx: 0, vy: 0,
+                    weight: 1, lastUsed: Date.now(), activeUntil: 0
+                };
+                nodeMap.set(id, n); return n;
+            }
+            function createEdge(from, to, type) {
+                const exists = edgeList.some(e => (e.from === from && e.to === to) || (e.from === to && e.to === from));
+                if (!exists) edgeList.push({ from, to, type: type || 'related' });
+            }
+            function updateNodeWeight(id) {
+                const n = nodeMap.get(id); if (!n) return; n.weight += 1; n.lastUsed = Date.now();
+            }
+            function activateNode(id, duration = 3000) {
+                const n = nodeMap.get(id); if (n) n.activeUntil = Date.now() + duration;
+            }
+            function pruneWeakest() {
+                let weakest = null, minW = Infinity;
+                nodeMap.forEach((n, id) => { if (n.weight < minW) { minW = n.weight; weakest = id } });
+
+                if (weakest) {
+                    nodeMap.delete(weakest);
+                    for (let i = edgeList.length - 1; i >= 0; i--) { if (edgeList[i].from === weakest || edgeList[i].to === weakest) edgeList.splice(i, 1) }
+                }
+            }
+            function applyDecay() {
+                const now = Date.now();
+                nodeMap.forEach(n => { const age = (now - n.lastUsed) / 60000; if (age > 5 && n.weight > 1) n.weight = Math.max(1, n.weight - 0.1) });
+            }
+            // --- Thinking Animation ---
+            function startThinking() {
+                if (thinkingInterval) return;
+                thinkingInterval = setInterval(() => {
+                    const allNodes = Array.from(nodeMap.values());
+                    if (allNodes.length > 0) {
+                        const num = Math.floor(Math.random() * 3) + 1;
+                        for (let i = 0; i < num; i++) {
+                            const target = allNodes[Math.floor(Math.random() * allNodes.length)];
+                            target.activeUntil = Date.now() + 600;
+                        }
+                    }
+                }, 300);
+            }
+            function stopThinking() {
+                if (thinkingInterval) { clearInterval(thinkingInterval); thinkingInterval = null; }
+            }
+            // --- Main update from backend ---
+            function updateGraph(data) {
+                // New structured format
+                if (data && data.nodes) {
+                    data.nodes.forEach(nd => {
+                        let n = createNode(nd.id, nd.type);
+                        n.label = nd.label || nd.id;
+                        if (nd.weight !== undefined) n.weight = nd.weight;
+                        else updateNodeWeight(nd.id);
+                        activateNode(nd.id);
+                    });
+                    if (data.edges) {
+                        data.edges.forEach(ed => createEdge(ed.from, ed.to, ed.type, ed.strength));
+                    }
+                }
+                // Fallback: plain sources array
+                else if (Array.isArray(data)) {
+                    data.forEach(s => {
+                        createNode(s, 'unknown'); updateNodeWeight(s); activateNode(s);
+                        if (!edgeList.some(e => (e.from === s && e.to === 'Ulisse') || (e.from === 'Ulisse' && e.to === s)))
+                            createEdge(s, ['Ulisse', 'Memoria', 'Conoscenza'][Math.floor(Math.random() * 3)], 'related');
+                    });
+                    for (let i = 0; i < data.length; i++)for (let j = i + 1; j < data.length; j++)createEdge(data[i], data[j], 'related');
+
+                    // FAKE REASONING PATH for immediate visual impact
+                    if (data.length > 0) {
+                        let path = [...data].sort(() => Math.random() - 0.5);
+                        path.push('Memoria', 'Conoscenza', 'Ulisse');
+                        highlightReasoningPath(path);
+                    } else {
+                        highlightReasoningPath(['Memoria', 'Conoscenza', 'Ulisse']);
+                    }
+                }
+            }
+            function highlightReasoningPath(path) {
+                if (!path || path.length < 2) return;
+                rpNodes = path; rpStart = Date.now();
+                // Ensure edges exist for the path so it looks connected
+                for (let i = 0; i < path.length - 1; i++) {
+                    createNode(path[i]); createNode(path[i + 1]);
+                    createEdge(path[i], path[i + 1], 'uses');
+                }
+                path.forEach(id => { const n = nodeMap.get(id); if (n) n.activeUntil = Date.now() + rpDur + 500 });
+            }
+            // --- Physics ---
+            function physics() {
+                const arr = [...nodeMap.values()];
+                for (let i = 0; i < arr.length; i++) {
+                    for (let j = i + 1; j < arr.length; j++) {
+                        let dx = arr[i].x - arr[j].x, dy = arr[i].y - arr[j].y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+                        if (d < 180) { let f = (180 - d) * 0.004; arr[i].vx += (dx / d) * f; arr[i].vy += (dy / d) * f; arr[j].vx -= (dx / d) * f; arr[j].vy -= (dy / d) * f }
+                    }
+                }
+                edgeList.forEach(e => {
+                    const a = nodeMap.get(e.from), b = nodeMap.get(e.to); if (!a || !b) return;
+                    let dx = b.x - a.x, dy = b.y - a.y, d = Math.sqrt(dx * dx + dy * dy) || 1, f = (d - 110) * 0.006;
+                    a.vx += (dx / d) * f; a.vy += (dy / d) * f; b.vx -= (dx / d) * f; b.vy -= (dy / d) * f
+                });
+                arr.forEach(n => { if (n === dragging) return; n.vx += (0 - n.x) * 0.0008; n.vy += (0 - n.y) * 0.0008; n.vx *= 0.88; n.vy *= 0.88; n.x += n.vx; n.y += n.vy });
+            }
+            // --- Render ---
+            function render() {
+                ctx.clearRect(0, 0, W, H); ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(cam.zoom, cam.zoom); ctx.translate(-cam.x, -cam.y);
+                const now = Date.now();
+                const selConns = selectedNode ? getConns(selectedNode) : null;
+                const focusing = !!selectedNode;
+                // Reasoning path edges
+                const rpActive = rpNodes.length > 1 && (now - rpStart) < rpDur;
+                const rpProgress = rpActive ? Math.min(1, (now - rpStart) / rpDur) : 0;
+                const rpEdgeSet = new Set();
+                if (rpActive) {
+                    for (let i = 0; i < rpNodes.length - 1; i++) {
+                        const stepProg = (i + 1) / rpNodes.length;
+                        if (rpProgress >= stepProg - 0.3) rpEdgeSet.add(rpNodes[i] + '->' + rpNodes[i + 1]);
+                    }
+                }
+                // Draw edges
+                edgeList.forEach(e => {
+                    const a = nodeMap.get(e.from), b = nodeMap.get(e.to); if (!a || !b) return;
+                    const aAct = a.activeUntil > now, bAct = b.activeUntil > now, active = aAct || bAct;
+                    const selHL = selectedNode && (e.from === selectedNode.id || e.to === selectedNode.id);
+                    const isRP = rpEdgeSet.has(e.from + '->' + e.to) || rpEdgeSet.has(e.to + '->' + e.from);
+                    // Focus mode: fade unrelated
+                    if (focusing && !selHL) { ctx.globalAlpha = 0.15 } else { ctx.globalAlpha = 1 }
+                    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+                    // Edge style by type
+                    if (e.type === 'related') ctx.setLineDash([4 / cam.zoom, 4 / cam.zoom]);
+                    else ctx.setLineDash([]);
+                    if (isRP) { ctx.strokeStyle = 'rgba(0,255,200,0.95)'; ctx.lineWidth = 3 / cam.zoom; ctx.shadowBlur = 16; ctx.shadowColor = '#00ffc8' }
+                    else if (active || selHL) { ctx.strokeStyle = 'rgba(0,212,255,0.8)'; ctx.lineWidth = 1.8 / cam.zoom; ctx.shadowBlur = 8; ctx.shadowColor = '#00d4ff' }
+                    else { ctx.strokeStyle = 'rgba(0,212,255,0.1)'; ctx.lineWidth = .8 / cam.zoom; ctx.shadowBlur = 0 }
+                    ctx.stroke(); ctx.shadowBlur = 0; ctx.setLineDash([]); ctx.globalAlpha = 1;
+                });
+                nodeMap.forEach(n => {
+                    const isAct = n.activeUntil > now, isHov = n === hoveredNode, isSel = n === selectedNode;
+                    const isActiveSession = n.id === activeSessionId;
+                    const isConnSel = selConns && selConns.has(n.id);
+                    const isRP = rpActive && rpNodes.includes(n.id);
+                    // Focus mode fade
+                    if (focusing && !isSel && !isConnSel && !isActiveSession) { ctx.globalAlpha = 0.18 } else { ctx.globalAlpha = 1 }
+                    // Size - Fixed for sessions, slightly larger for core
+                    const baseR = (n.type === 'core' ? 10 : 6) / cam.zoom;
+                    let r = baseR;
+                    if (isAct || isRP || isActiveSession) r = baseR + Math.sin(now / 150) * (isActiveSession ? 3 : 1.5) / cam.zoom;
+                    if (isHov) r = baseR * 1.5;
+                    if (isSel) r = baseR * 1.7;
+                    // Outer glow
+                    if (isAct || isRP || isActiveSession) {
+                        ctx.beginPath(); ctx.arc(n.x, n.y, r + (isActiveSession ? 8 : 5) / cam.zoom, 0, Math.PI * 2);
+                        ctx.fillStyle = isActiveSession ? `rgba(255,255,255,${0.2 + Math.sin(now / 200) * 0.15})` : (isRP ? 'rgba(0,255,200,0.12)' : `rgba(0,212,255,${0.12 + Math.sin(now / 200) * 0.08})`);
+                        ctx.fill()
+                    }
+                    // Node circle
+                    ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+                    const col = typeColor(n.type);
+
+                    if (isActiveSession) { ctx.fillStyle = '#fff'; ctx.shadowBlur = 25; ctx.shadowColor = '#fff' }
+                    else if (isRP) { ctx.fillStyle = '#fff'; ctx.shadowBlur = 22; ctx.shadowColor = '#00ffc8' }
+                    else if (isAct || isSel) { ctx.fillStyle = '#fff'; ctx.shadowBlur = 18; ctx.shadowColor = col }
+                    else if (isHov || isConnSel) { ctx.fillStyle = col; ctx.shadowBlur = 10; ctx.shadowColor = col }
+                    else {
+                        const age = Math.min(1, (Date.now() - n.lastUsed) / 300000);
+                        ctx.fillStyle = col;
+                        ctx.globalAlpha *= (1 - age * 0.3);
+                        ctx.shadowBlur = 3;
+                        ctx.shadowColor = col;
+                    }
+                    ctx.fill(); ctx.shadowBlur = 0;
+                    // Label
+                    const fs = Math.max(9, 11 / cam.zoom);
+                    ctx.font = (isAct || isSel || isRP) ? `bold ${fs}px Courier New` : `${fs}px Courier New`;
+                    ctx.textAlign = 'center'; ctx.fillStyle = (isAct || isSel || isHov || isRP) ? '#fff' : 'rgba(255,255,255,0.5)';
+                    const labelText = n.label || n.id;
+                    const lbl = labelText.length > 22 ? labelText.substring(0, 19) + '...' : labelText;
+                    ctx.fillText(lbl, n.x, n.y + r + fs + 2 / cam.zoom);
+                    ctx.globalAlpha = 1;
+                });
+                ctx.restore();
+            }
+            function loop() { physics(); render(); requestAnimationFrame(loop) }
+            // --- Events ---
+            function showInfo(node) {
+                if (!node) { infoPanel.style.display = 'none'; return }
+                const conns = getConns(node);
+                infoPanel.style.display = 'block';
+                infoPanel.querySelector('.ni-title').textContent = node.id;
+                document.getElementById('ni-type').textContent = 'Type: ' + node.type;
+                document.getElementById('ni-weight').textContent = 'Weight: ' + node.weight.toFixed(1);
+                infoPanel.querySelector('.ni-conns').textContent = 'Connections (' + conns.size + '): ' + (conns.size ? [...conns].slice(0, 6).join(', ') : 'none');
+            }
+            function bindEvents() {
+                canvas.addEventListener('mousedown', e => {
+                    const h = hitNode(e.offsetX, e.offsetY);
+                    if (h) { dragging = h; canvas.style.cursor = 'grabbing' } else { panning = true; panS = { x: e.offsetX, y: e.offsetY } }
+                });
+                canvas.addEventListener('mousemove', e => {
+                    if (dragging) { const w = s2w(e.offsetX, e.offsetY); dragging.x = w.x; dragging.y = w.y; dragging.vx = 0; dragging.vy = 0 }
+                    else if (panning) { cam.x -= (e.offsetX - panS.x) / cam.zoom; cam.y -= (e.offsetY - panS.y) / cam.zoom; panS = { x: e.offsetX, y: e.offsetY } }
+                    else {
+                        const h = hitNode(e.offsetX, e.offsetY); hoveredNode = h; canvas.style.cursor = h ? 'pointer' : 'grab';
+                        if (h) { tooltip.style.display = 'block'; tooltip.textContent = h.id + ' (' + h.type + ')'; tooltip.style.left = (e.offsetX + 14) + 'px'; tooltip.style.top = (e.offsetY - 10) + 'px' }
+                        else { tooltip.style.display = 'none' }
+                    }
+                });
+                canvas.addEventListener('mouseup', () => { dragging = null; panning = false; canvas.style.cursor = 'grab' });
+                canvas.addEventListener('mouseleave', () => { dragging = null; panning = false; hoveredNode = null; tooltip.style.display = 'none' });
+                canvas.addEventListener('click', e => {
+                    const h = hitNode(e.offsetX, e.offsetY);
+                    if (h && h.type === 'session') {
+                        selectedNode = h;
+                        showInfo(h);
+                        openSessionPanel(h.id);
+                    } else {
+                        selectedNode = (selectedNode === h) ? null : h;
+                        showInfo(selectedNode);
+                        if (!selectedNode) closeSessionPanel();
+                    }
+                });
+                canvas.addEventListener('wheel', e => { e.preventDefault(); cam.zoom = Math.min(Math.max(cam.zoom * (e.deltaY < 0 ? 1.1 : .9), .3), 4) }, { passive: false });
+
+                // --- Touch Events ---
+                let lastTouchDist = 0;
+                canvas.addEventListener('touchstart', e => {
+                    const touch = e.touches[0];
+                    const rect = canvas.getBoundingClientRect();
+                    const offsetX = touch.clientX - rect.left;
+                    const offsetY = touch.clientY - rect.top;
+
+                    if (e.touches.length === 2) {
+                        const dx = e.touches[0].clientX - e.touches[1].clientX;
+                        const dy = e.touches[0].clientY - e.touches[1].clientY;
+                        lastTouchDist = Math.sqrt(dx * dx + dy * dy);
+                    } else if (e.touches.length === 1) {
+                        const h = hitNode(offsetX, offsetY);
+                        if (h) { dragging = h; }
+                        else { panning = true; panS = { x: offsetX, y: offsetY } }
+                    }
+                }, { passive: false });
+
+                canvas.addEventListener('touchmove', e => {
+                    if (e.touches.length > 0) e.preventDefault();
+                    const rect = canvas.getBoundingClientRect();
+
+                    if (e.touches.length === 2) {
+                        const dx = e.touches[0].clientX - e.touches[1].clientX;
+                        const dy = e.touches[0].clientY - e.touches[1].clientY;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (lastTouchDist > 0) {
+                            const factor = dist / lastTouchDist;
+                            cam.zoom = Math.min(Math.max(cam.zoom * factor, .3), 4);
+                        }
+                        lastTouchDist = dist;
+                    } else if (e.touches.length === 1) {
+                        const touch = e.touches[0];
+                        const offsetX = touch.clientX - rect.left;
+                        const offsetY = touch.clientY - rect.top;
+                        if (dragging) {
+                            const w = s2w(offsetX, offsetY);
+                            dragging.x = w.x; dragging.y = w.y; dragging.vx = 0; dragging.vy = 0;
+                        } else if (panning) {
+                            cam.x -= (offsetX - panS.x) / cam.zoom;
+                            cam.y -= (offsetY - panS.y) / cam.zoom;
+                            panS = { x: offsetX, y: offsetY };
+                        }
+                    }
+                }, { passive: false });
+
+                canvas.addEventListener('touchend', () => { dragging = null; panning = false; lastTouchDist = 0; });
+            }
+            return { initGraph, createNode, createEdge, activateNode, updateGraph, highlightReasoningPath, updateNodeWeight, applyDecay, startThinking, stopThinking };
+        })();
+
+        // ================================================================
+        //  CHAT MODULE
+        // ================================================================
+        const chatMessages = document.getElementById('chat-messages');
+        const messageInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const charCount = document.getElementById('char-count');
+        const fileInput = document.getElementById('file-input');
+        const attachBtn = document.getElementById('attach-btn');
+        const filePreviewArea = document.getElementById('file-preview-area');
+        const emptyState = document.getElementById('empty-state');
+        const newChatBtn = document.getElementById('new-chat-btn');
+        const scrollBottomBtn = document.getElementById('scroll-bottom-btn');
+
+        let history = [];
+        let abortController = null;
+        let currentFile = null;
+        let isGenerating = false;
+
+        // --- Textarea Auto-resize ---
+        function autoResizeTextarea() {
+            messageInput.style.height = 'auto';
+            const newHeight = Math.min(messageInput.scrollHeight, 150);
+            messageInput.style.height = newHeight + 'px';
+            messageInput.style.overflowY = messageInput.scrollHeight > 150 ? 'auto' : 'hidden';
+        }
+
+        messageInput.addEventListener('input', () => {
+            autoResizeTextarea();
+            updateCharCount();
+        });
+
+        function updateCharCount() {
+            const count = messageInput.value.length;
+            charCount.textContent = `${count} caratteri`;
+            charCount.style.color = count > 1000 ? '#ff4444' : 'rgba(255, 255, 255, 0.3)';
+        }
+
+        // --- Keyboard Shortcuts ---
+        messageInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+            if (e.key === 'Escape') {
+                cancelEdit();
+            }
+        });
+
+        document.addEventListener('keydown', e => {
+            if (e.ctrlKey && e.key === 'k') {
+                e.preventDefault();
+                messageInput.focus();
+            }
+        });
+
+        // --- File Upload Handling ---
+        attachBtn.onclick = () => fileInput.click();
+
+        fileInput.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (file.size > 10 * 1024 * 1024) {
+                alert('File troppo grande (max 10MB)');
+                fileInput.value = '';
+                return;
+            }
+
+            const base64 = await toBase64(file);
+            currentFile = {
+                name: file.name,
+                type: file.type,
+                data: base64
+            };
+
+            renderFilePreview();
+            fileInput.value = '';
+        };
+
+        function toBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        function renderFilePreview() {
+            if (!currentFile) {
+                filePreviewArea.style.display = 'none';
+                filePreviewArea.innerHTML = '';
+                return;
+            }
+
+            filePreviewArea.style.display = 'flex';
+            filePreviewArea.innerHTML = `
+                <div class="file-chip">
+                    <span>📎 ${currentFile.name}</span>
+                    <span class="remove-file" onclick="removeFile()">✕</span>
+                </div>
+            `;
+        }
+
+        function removeFile() {
+            currentFile = null;
+            renderFilePreview();
+        }
+
+        // --- Conversation Management ---
+        newChatBtn.onclick = () => {
+            if (history.length === 0 || confirm('Vuoi iniziare una nuova conversazione? La storia corrente andrà persa.')) {
+                activeSessionId = null;
+                history = [];
+                chatMessages.innerHTML = '';
+                chatMessages.appendChild(emptyState);
+                emptyState.style.display = 'flex';
+                removeFile();
+                messageInput.value = '';
+                autoResizeTextarea();
+                updateCharCount();
+            }
+        };
+
+        function useSuggestion(text) {
+            messageInput.value = text;
+            autoResizeTextarea();
+            updateCharCount();
+            messageInput.focus();
+        }
+
+        // --- Message Actions ---
+        async function copyToClipboard(text, btn) {
+            try {
+                await navigator.clipboard.writeText(text);
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Copiato!';
+                setTimeout(() => btn.textContent = originalText, 2000);
+            } catch (err) {
+                console.error('Errore copia:', err);
+            }
+        }
+
+        function retryLastMessage() {
+            const lastUserMsg = [...history].reverse().find(m => m.role === 'user');
+            if (lastUserMsg) {
+                // Truncate history to before the last user message and re-send
+                const idx = history.indexOf(lastUserMsg);
+                history = history.slice(0, idx);
+
+                // Remove messages from UI
+                const msgEls = chatMessages.querySelectorAll('.message');
+                for (let i = idx; i < msgEls.length; i++) {
+                    msgEls[i].remove();
+                }
+
+                messageInput.value = lastUserMsg.content;
+                sendMessage();
+            }
+        }
+
+        // --- Scroll Management ---
+        chatMessages.onscroll = () => {
+            const isBottom = chatMessages.scrollHeight - chatMessages.scrollTop <= chatMessages.clientHeight + 100;
+            scrollBottomBtn.style.display = isBottom ? 'none' : 'flex';
+        };
+
+        scrollBottomBtn.onclick = () => {
+            chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
+        };
+
+        // --- Chat Logic ---
+        function appendMessage(role, text, sources = [], fileData = null, shouldScroll = true) {
+            emptyState.style.display = 'none';
+
+            const now = new Date();
+            const timestamp = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+
+            const m = document.createElement('div');
+            m.classList.add('message', role);
+
+            // Actions
+            const actions = document.createElement('div');
+            actions.classList.add('message-actions');
+
+            if (role === 'user') {
+                const editBtn = document.createElement('button');
+                editBtn.classList.add('msg-action-btn');
+                editBtn.textContent = '✏️';
+                editBtn.onclick = () => startEdit(m, text);
+                actions.appendChild(editBtn);
+            } else {
+                const copyBtn = document.createElement('button');
+                copyBtn.classList.add('msg-action-btn');
+                copyBtn.textContent = '📋 Copia';
+                copyBtn.onclick = () => copyToClipboard(text, copyBtn);
+                actions.appendChild(copyBtn);
+
+                const retryBtn = document.createElement('button');
+                retryBtn.classList.add('msg-action-btn');
+                retryBtn.textContent = '🔄 Riprova';
+                retryBtn.onclick = retryLastMessage;
+                actions.appendChild(retryBtn);
+            }
+            m.appendChild(actions);
+
+            const t = document.createElement('div');
+            t.classList.add('content');
+            t.textContent = text;
+            m.appendChild(t);
+
+            // File Attachment in message
+            if (fileData) {
+                const f = document.createElement('div');
+                if (fileData.type.startsWith('image/')) {
+                    const img = document.createElement('img');
+                    img.src = fileData.data;
+                    img.classList.add('thumbnail-preview');
+                    f.appendChild(img);
+                } else {
+                    f.innerHTML = `
+                        <div class="file-attachment">
+                            <span>📄 ${fileData.name}</span>
+                        </div>
+                    `;
+                }
+                m.appendChild(f);
+            }
+
+            if (sources.length > 0) {
+                const s = document.createElement('div');
+                s.classList.add('sources');
+                s.textContent = 'Sources: ' + sources.join(', ');
+                m.appendChild(s);
+            }
+
+            const ts = document.createElement('div');
+            ts.classList.add('timestamp');
+            ts.textContent = timestamp;
+            m.appendChild(ts);
+
+            chatMessages.appendChild(m);
+            if (shouldScroll) {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        }
+
+        let editingMessage = null;
+        function startEdit(msgEl, originalText) {
+            editingMessage = { element: msgEl, text: originalText };
+            const contentEl = msgEl.querySelector('.content');
+            contentEl.innerHTML = `
+                <div class="inline-edit-area">
+                    <textarea class="inline-edit-textarea" rows="3">${originalText}</textarea>
+                    <div class="edit-actions">
+                        <button class="msg-action-btn" onclick="cancelEdit()">✗ Annulla</button>
+                        <button class="msg-action-btn" onclick="confirmEdit()">✓ Conferma</button>
+                    </div>
+                </div>
+            `;
+            const textarea = contentEl.querySelector('textarea');
+            textarea.focus();
+            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+        }
+
+        function cancelEdit() {
+            if (!editingMessage) return;
+            const contentEl = editingMessage.element.querySelector('.content');
+            contentEl.textContent = editingMessage.text;
+            editingMessage = null;
+        }
+
+        function confirmEdit() {
+            if (!editingMessage) return;
+            const textarea = editingMessage.element.querySelector('textarea');
+            const newText = textarea.value.trim();
+
+            if (newText && newText !== editingMessage.text) {
+                const msgEls = Array.from(chatMessages.querySelectorAll('.message'));
+                const idx = msgEls.indexOf(editingMessage.element);
+
+                // Update history
+                // History has 2 entries per message pair (user/assistant) usually, but we need to find the correct user message
+                // Actually, let's just find the nth user message
+                let userMsgCount = 0;
+                let historyIdx = -1;
+                for (let i = 0; i < history.length; i++) {
+                    if (history[i].role === 'user') {
+                        if (userMsgCount === idx / 2) { // This is a bit simplified, assumes strict user/assistant order
+                            historyIdx = i;
+                            break;
+                        }
+                        userMsgCount++;
+                    }
+                }
+
+                // A better way: truncate history and messages from this point
+                // find which message this is in the full history
+                // We'll just clear everything after this message to be safe
+                const userMsgIndex = Math.floor(idx / 2) * 2;
+                history = history.slice(0, userMsgIndex);
+
+                // Clear UI from this message onwards
+                while (chatMessages.children.length > idx) {
+                    chatMessages.lastChild.remove();
+                }
+
+                messageInput.value = newText;
+                sendMessage();
+            } else {
+                cancelEdit();
+            }
+            editingMessage = null;
+        }
+
+        function showTyping() {
+            const m = document.createElement('div'); m.id = 'typing-indicator'; m.classList.add('message', 'assistant');
+            m.innerHTML = '<span class="typing-dot">.</span><span class="typing-dot">.</span><span class="typing-dot">.</span>'; chatMessages.appendChild(m); chatMessages.scrollTop = chatMessages.scrollHeight
+        }
+
+        function removeTyping() { const el = document.getElementById('typing-indicator'); if (el) el.remove() }
+
+        function stopGeneration() {
+            if (abortController) {
+                abortController.abort();
+                isGenerating = false;
+                removeTyping();
+                Graph.stopThinking();
+                appendMessage('assistant', 'Generazione interrotta.');
+                setLoadingState(false);
+            }
+        }
+
+        stopBtn.onclick = stopGeneration;
+
+        function setLoadingState(loading) {
+            isGenerating = loading;
+            messageInput.disabled = loading;
+            sendBtn.style.display = loading ? 'none' : 'block';
+            stopBtn.style.display = loading ? 'block' : 'none';
+            if (!loading) {
+                messageInput.focus();
+            }
+        }
+
+        async function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text && !currentFile) return;
+
+            const fileToSend = currentFile;
+
+            messageInput.value = '';
+            autoResizeTextarea();
+            updateCharCount();
+            removeFile();
+
+            setLoadingState(true);
+            appendMessage('user', text, [], fileToSend);
+            showTyping();
+            Graph.startThinking();
+
+            abortController = new AbortController();
+
+            try {
+                const payload = {
+                    message: text,
+                    history,
+                    file: fileToSend // NOTE: Backend will handle this object when updated
+                };
+
+                const resp = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ...payload,
+                        session_id: activeSessionId || null
+                    }),
+                    signal: abortController.signal
+                });
+
+                const data = await resp.json();
+                removeTyping();
+                Graph.stopThinking();
+
+                if (data.error) {
+                    appendMessage('assistant', 'Errore di sistema: ' + data.error);
+                } else {
+                    const srcNames = data.sources || [];
+                    appendMessage('assistant', data.response, srcNames);
+
+                    const isNewSession = !activeSessionId && data.session_id;
+                    if (data.session_id) {
+                        activeSessionId = data.session_id;
+                    }
+
+                    if (isNewSession) {
+                        fetchGraph(); // Full refresh for new nodes/edges
+                    } else if (activeSessionId) {
+                        // Just pulse and update existing node
+                        Graph.activateNode(activeSessionId, 4000);
+                        Graph.updateNodeWeight(activeSessionId);
+                        // Optional: small probability to refresh edges occasionally
+                        if (Math.random() > 0.8) fetchGraph();
+                    }
+
+                    history.push({ role: 'user', content: text });
+                    history.push({ role: 'assistant', content: data.response });
+                }
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    console.log('Fetch aborted');
+                } else {
+                    removeTyping();
+                    Graph.stopThinking();
+                    appendMessage('assistant', 'Impossibile stabilire la connessione con il backend: ' + err.message);
+                }
+            } finally {
+                setLoadingState(false);
+                abortController = null;
+            }
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+
+        async function fetchGraph() {
+            console.log('fetchGraph(): Attivazione recupero dati grafo...');
+            try {
+                const resp = await fetch('/graph');
+                const data = await resp.json();
+                console.log('fetchGraph(): Dati ricevuti dal backend:', data);
+                if (!data.error) {
+                    Graph.updateGraph(data);
+                } else {
+                    console.error('fetchGraph(): Errore riportato dal backend:', data.error);
+                }
+            } catch (err) {
+                console.error('fetchGraph(): Fallimento fetch:', err);
+            }
+        }
+
+        const refreshBtn = document.getElementById('refresh-graph-btn');
+        if (refreshBtn) {
+            console.log('Aggiunta listener a refresh-graph-btn');
+            refreshBtn.addEventListener('click', () => {
+                console.log('Pulsante REFRESH cliccato');
+                fetchGraph();
+            });
+        } else {
+            console.warn('ATTENZIONE: Pulsante refresh-graph-btn non trovato nel DOM!');
+        }
+
+        // --- Session Panel Logic ---
+        const sessionPanel = document.getElementById('session-panel');
+        const spTitle = document.getElementById('sp-title');
+        const spDate = document.getElementById('sp-date');
+        const spHistoryPreview = document.getElementById('sp-history-preview');
+        const spRelatedList = document.getElementById('sp-related-list');
+        const spContinueBtn = document.getElementById('sp-continue-btn');
+        const spDeleteBtn = document.getElementById('sp-delete-btn');
+        const spCloseBtn = document.getElementById('sp-close-btn');
+
+        let activeSessionId = null;
+        let viewingSessionId = null;
+
+        async function openSessionPanel(sid) {
+            viewingSessionId = sid;
+            sessionPanel.classList.add('open');
+
+            try {
+                const resp = await fetch(`/sessions/${sid}`);
+                const data = await resp.json();
+
+                spTitle.textContent = data.title;
+                spDate.textContent = new Date(data.created_at).toLocaleString();
+
+                spHistoryPreview.innerHTML = '';
+                data.messages.slice(-10).forEach(m => {
+                    const div = document.createElement('div');
+                    div.className = `sp-msg ${m.role}`;
+                    div.innerHTML = `<span class="role">${m.role}</span><div class="content">${m.content.substring(0, 200)}${m.content.length > 200 ? '...' : ''}</div>`;
+                    spHistoryPreview.appendChild(div);
+                });
+
+                // Fetch related
+                const relResp = await fetch(`/sessions/${sid}/related`);
+                const related = await relResp.json();
+                spRelatedList.innerHTML = '';
+                related.forEach(r => {
+                    const item = document.createElement('div');
+                    item.className = 'related-item';
+                    item.textContent = r.title;
+                    item.onclick = () => openSessionPanel(r.id);
+                    spRelatedList.appendChild(item);
+                });
+
+            } catch (err) {
+                console.error('Error loading session details:', err);
+            }
+        }
+
+        function closeSessionPanel() {
+            sessionPanel.classList.remove('open');
+            viewingSessionId = null;
+        }
+
+        spCloseBtn.onclick = closeSessionPanel;
+
+        spContinueBtn.onclick = async () => {
+            if (!viewingSessionId) return;
+            activeSessionId = viewingSessionId;
+            closeSessionPanel();
+
+            try {
+                const resp = await fetch(`/sessions/${activeSessionId}`);
+                const data = await resp.json();
+
+                history = data.messages;
+                chatMessages.innerHTML = '';
+                history.forEach(m => {
+                    appendMessage(m.role, m.content, m.sources || [], null, false); // false to avoid scrolling on every message
+                });
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                emptyState.style.display = 'none';
+            } catch (err) {
+                console.error('Error continuing session:', err);
+            }
+        };
+
+        spDeleteBtn.onclick = async () => {
+            if (!viewingSessionId || !confirm('Sei sicuro di voler eliminare questa sessione?')) return;
+            try {
+                await fetch(`/sessions/${viewingSessionId}`, { method: 'DELETE' });
+                if (activeSessionId === viewingSessionId) {
+                    newChatBtn.onclick();
+                }
+                closeSessionPanel();
+                fetchGraph();
+            } catch (err) {
+                console.error('Error deleting session:', err);
+            }
+        };
+
+        spTitle.onblur = async () => {
+            if (!viewingSessionId) return;
+            const newTitle = spTitle.textContent.trim();
+            try {
+                await fetch(`/sessions/${viewingSessionId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: newTitle })
+                });
+                fetchGraph();
+            } catch (err) {
+                console.error('Error updating title:', err);
+            }
+        };
+
+        // ================================================================
+        //  MEMORY VIEW MODULE
+        // ================================================================
+        const MemoryView = (() => {
+            const overlay = document.getElementById('memory-view');
+            const canvas = document.getElementById('memory-graph-canvas');
+            const ctx = canvas.getContext('2d');
+            const searchInput = document.getElementById('mv-search-input');
+            const closeBtn = document.getElementById('mv-close-btn');
+            const statsBar = document.getElementById('mv-stats-bar');
+
+            const detailEmpty = document.getElementById('mv-detail-empty');
+            const detailContent = document.getElementById('mv-detail-content');
+            const detailTitle = document.getElementById('mv-detail-title');
+            const detailDates = document.getElementById('mv-detail-dates');
+            const detailStats = document.getElementById('mv-detail-stats');
+            const detailPreview = document.getElementById('mv-detail-preview');
+            const openChatBtn = document.getElementById('mv-open-chat-btn');
+            const deleteBtn = document.getElementById('mv-delete-btn');
+
+            let nodes = [];
+            let edges = [];
+            let filteredNodes = [];
+            let selectedNode = null;
+            let hoveredNode = null;
+            let isOpen = false;
+            let width, height;
+
+            // Navigation & Physics State
+            let cam = { x: 0, y: 0, zoom: 1 };
+            let isPanning = false;
+            let draggingNode = null;
+            let lastMouse = { x: 0, y: 0 };
+            let animId = null;
+
+            function w2s(x, y) {
+                return {
+                    x: (x - cam.x) * cam.zoom + width / 2,
+                    y: (y - cam.y) * cam.zoom + height / 2
+                };
+            }
+
+            function s2w(x, y) {
+                return {
+                    x: (x - width / 2) / cam.zoom + cam.x,
+                    y: (y - height / 2) / cam.zoom + cam.y
+                };
+            }
+
+            function init() {
+                document.getElementById('memoria-btn').onclick = open;
+                closeBtn.onclick = close;
+                searchInput.oninput = handleSearch;
+
+                // Synthetic memory update logic removed
+
+
+                window.addEventListener('keydown', e => {
+                    if (e.key === 'Escape' && isOpen) close();
+                });
+
+                window.addEventListener('resize', () => {
+                    if (isOpen) resize();
+                });
+
+                canvas.addEventListener('wheel', e => {
+                    e.preventDefault();
+                    const zoomSpeed = 0.001;
+                    const factor = Math.exp(-e.deltaY * zoomSpeed);
+                    const newZoom = Math.min(4, Math.max(0.1, cam.zoom * factor));
+
+                    const rect = canvas.getBoundingClientRect();
+                    const mouseW = s2w(e.clientX - rect.left, e.clientY - rect.top);
+                    cam.zoom = newZoom;
+                    const mouseWNew = s2w(e.clientX - rect.left, e.clientY - rect.top);
+                    cam.x -= (mouseWNew.x - mouseW.x);
+                    cam.y -= (mouseWNew.y - mouseW.y);
+                }, { passive: false });
+
+                canvas.addEventListener('mousedown', e => {
+                    const rect = canvas.getBoundingClientRect();
+                    const mouseX = e.clientX - rect.left;
+                    const mouseY = e.clientY - rect.top;
+                    const worldPos = s2w(mouseX, mouseY);
+
+                    let hit = null;
+                    const hitRange = 25 / cam.zoom;
+                    for (const n of filteredNodes) {
+                        const dx = n.x - worldPos.x;
+                        const dy = n.y - worldPos.y;
+                        if (Math.sqrt(dx * dx + dy * dy) < hitRange) {
+                            hit = n;
+                            break;
+                        }
+                    }
+
+                    if (hit) {
+                        draggingNode = hit;
+                        selectNode(hit);
+                    } else {
+                        isPanning = true;
+                        lastMouse = { x: e.clientX, y: e.clientY };
+                        canvas.style.cursor = 'grabbing';
+                    }
+                });
+
+                window.addEventListener('mousemove', e => {
+                    if (!isOpen) return;
+                    const rect = canvas.getBoundingClientRect();
+                    const mouseX = e.clientX - rect.left;
+                    const mouseY = e.clientY - rect.top;
+                    const worldPos = s2w(mouseX, mouseY);
+
+                    if (draggingNode) {
+                        draggingNode.x = worldPos.x;
+                        draggingNode.y = worldPos.y;
+                        draggingNode.vx = 0;
+                        draggingNode.vy = 0;
+                    } else if (isPanning) {
+                        const dx = (e.clientX - lastMouse.x) / cam.zoom;
+                        const dy = (e.clientY - lastMouse.y) / cam.zoom;
+                        cam.x -= dx;
+                        cam.y -= dy;
+                        lastMouse = { x: e.clientX, y: e.clientY };
+                    } else {
+                        let hit = null;
+                        const hitRange = 25 / cam.zoom;
+                        for (const n of filteredNodes) {
+                            const dx = n.x - worldPos.x;
+                            const dy = n.y - worldPos.y;
+                            if (Math.sqrt(dx * dx + dy * dy) < hitRange) {
+                                hit = n;
+                                break;
+                            }
+                        }
+
+                        if (hit !== hoveredNode) {
+                            hoveredNode = hit;
+                            canvas.style.cursor = hit ? 'pointer' : 'grab';
+                        }
+                    }
+                });
+
+                window.addEventListener('mouseup', () => {
+                    isPanning = false;
+                    draggingNode = null;
+                    canvas.style.cursor = hoveredNode ? 'pointer' : 'grab';
+                });
+
+                // --- Touch Events ---
+                let lastTouchDist = 0;
+                canvas.addEventListener('touchstart', e => {
+                    const rect = canvas.getBoundingClientRect();
+
+                    if (e.touches.length === 2) {
+                        const dx = e.touches[0].clientX - e.touches[1].clientX;
+                        const dy = e.touches[0].clientY - e.touches[1].clientY;
+                        lastTouchDist = Math.sqrt(dx * dx + dy * dy);
+                    } else if (e.touches.length === 1) {
+                        const touch = e.touches[0];
+                        const mouseX = touch.clientX - rect.left;
+                        const mouseY = touch.clientY - rect.top;
+                        const worldPos = s2w(mouseX, mouseY);
+
+                        let hit = null;
+                        const hitRange = 25 / cam.zoom;
+                        for (const n of filteredNodes) {
+                            const dx = n.x - worldPos.x;
+                            const dy = n.y - worldPos.y;
+                            if (Math.sqrt(dx * dx + dy * dy) < hitRange) {
+                                hit = n;
+                                break;
+                            }
+                        }
+
+                        if (hit) {
+                            draggingNode = hit;
+                            selectNode(hit);
+                        } else {
+                            isPanning = true;
+                            lastMouse = { x: touch.clientX, y: touch.clientY };
+                        }
+                    }
+                }, { passive: false });
+
+                canvas.addEventListener('touchmove', e => {
+                    if (e.touches.length > 0) e.preventDefault();
+                    const rect = canvas.getBoundingClientRect();
+
+                    if (e.touches.length === 2) {
+                        const dx = e.touches[0].clientX - e.touches[1].clientX;
+                        const dy = e.touches[0].clientY - e.touches[1].clientY;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (lastTouchDist > 0) {
+                            const factor = dist / lastTouchDist;
+                            cam.zoom = Math.min(Math.max(cam.zoom * factor, 0.1), 4);
+                        }
+                        lastTouchDist = dist;
+                    } else if (e.touches.length === 1) {
+                        const touch = e.touches[0];
+                        const mouseX = touch.clientX - rect.left;
+                        const mouseY = touch.clientY - rect.top;
+                        const worldPos = s2w(mouseX, mouseY);
+
+                        if (draggingNode) {
+                            draggingNode.x = worldPos.x;
+                            draggingNode.y = worldPos.y;
+                            draggingNode.vx = 0;
+                            draggingNode.vy = 0;
+                        } else if (isPanning) {
+                            const dx = (touch.clientX - lastMouse.x) / cam.zoom;
+                            const dy = (touch.clientY - lastMouse.y) / cam.zoom;
+                            cam.x -= dx;
+                            cam.y -= dy;
+                            lastMouse = { x: touch.clientX, y: touch.clientY };
+                        }
+                    }
+                }, { passive: false });
+
+                canvas.addEventListener('touchend', () => {
+                    isPanning = false;
+                    draggingNode = null;
+                    lastTouchDist = 0;
+                });
+
+                openChatBtn.onclick = async () => {
+                    if (!selectedNode || selectedNode.type !== 'session') return;
+                    viewingSessionId = selectedNode.id;
+                    await spContinueBtn.onclick();
+                    close();
+                };
+
+                deleteBtn.onclick = async () => {
+                    if (!selectedNode || selectedNode.type !== 'session' || !confirm('Eliminare definitivamente questo ricordo?')) return;
+                    await fetch(`/sessions/${selectedNode.id}`, { method: 'DELETE' });
+                    loadData();
+                    detailContent.style.display = 'none';
+                    detailEmpty.style.display = 'flex';
+                    selectedNode = null;
+                    fetchGraph();
+                };
+
+                detailTitle.onblur = async () => {
+                    if (!selectedNode || selectedNode.type !== 'session') return;
+                    const newTitle = detailTitle.textContent.trim();
+                    await fetch(`/sessions/${selectedNode.id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ title: newTitle })
+                    });
+                    selectedNode.title = newTitle;
+                    fetchGraph();
+                };
+            }
+
+            function resize() {
+                width = canvas.parentElement.clientWidth;
+                height = canvas.parentElement.clientHeight;
+                canvas.width = width;
+                canvas.height = height;
+            }
+
+            async function open() {
+                isOpen = true;
+                overlay.style.display = 'flex';
+                setTimeout(() => overlay.classList.add('open'), 10);
+                resize();
+                await loadData();
+                if (!animId) loop();
+            }
+
+            function close() {
+                overlay.classList.remove('open');
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                    isOpen = false;
+                    if (animId) {
+                        cancelAnimationFrame(animId);
+                        animId = null;
+                    }
+                }, 300);
+            }
+
+            async function loadData() {
+                try {
+                    statsBar.innerHTML = `<span style="color:rgba(255,255,255,0.5)">Caricamento Synthetic Memory...</span>`;
+
+                    const [statsResp, nodesResp] = await Promise.all([
+                        fetch('/memory/stats'),
+                        fetch('/memory/nodes')
+                    ]);
+
+                    const stats = await statsResp.json();
+                    const data = await nodesResp.json();
+
+                    // Initialize physics properties
+                    nodes = data.nodes.map(n => {
+                        const existing = nodes.find(en => en.id === n.id);
+                        return {
+                            ...n,
+                            x: existing ? existing.x : (Math.random() - 0.5) * 400,
+                            y: existing ? existing.y : (Math.random() - 0.5) * 400,
+                            vx: 0, vy: 0,
+                            radius: (n.type === 'concept' || n.type === 'wiki') ? 10 : 5
+                        };
+
+                    });
+                    edges = data.edges || [];
+
+                    const oldest = stats.oldest_session ? new Date(stats.oldest_session).toLocaleDateString() : '---';
+                    statsBar.innerHTML = `🧠 ${stats.total_sessions} sessioni · ${stats.total_chunks} chunk · ${stats.total_messages} messaggi totali · prima chat: ${oldest}`;
+
+                    handleSearch();
+
+                    autoFit();
+                } catch (err) {
+                    console.error('MemoryView load error:', err);
+                    statsBar.innerHTML = `<span style="color:#ff4444">Errore nel caricamento della memoria.</span>`;
+                }
+            }
+
+            // fetchSyntheticMemory removed
+
+
+            function handleSearch() {
+                const query = searchInput.value.toLowerCase();
+                filteredNodes = nodes.filter(n => n.title.toLowerCase().includes(query));
+            }
+
+            function physics() {
+                // Repulsion
+                for (let i = 0; i < nodes.length; i++) {
+                    const n1 = nodes[i];
+                    for (let j = i + 1; j < nodes.length; j++) {
+                        const n2 = nodes[j];
+                        let dx = n1.x - n2.x, dy = n1.y - n2.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+                        const minDist = (n1.type === 'concept' || n1.type === 'wiki' || n2.type === 'concept' || n2.type === 'wiki') ? 180 : 80;
+
+                        if (d < minDist) {
+                            let f = (minDist - d) * 0.005;
+                            n1.vx += (dx / d) * f; n1.vy += (dy / d) * f;
+                            n2.vx -= (dx / d) * f; n2.vy -= (dy / d) * f;
+                        }
+                    }
+                }
+
+                // Attraction (Edges)
+                edges.forEach(e => {
+                    const n1 = nodes.find(n => n.id === e.source);
+                    const n2 = nodes.find(n => n.id === e.target);
+                    if (!n1 || !n2) return;
+                    let dx = n2.x - n1.x, dy = n2.y - n1.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+                    const targetDist = (n1.type === 'concept' || n1.type === 'wiki' || n2.type === 'concept' || n2.type === 'wiki') ? 150 : 80;
+
+                    let f = (d - targetDist) * 0.01;
+                    n1.vx += (dx / d) * f; n1.vy += (dy / d) * f;
+                    n2.vx -= (dx / d) * f; n2.vy -= (dy / d) * f;
+                });
+
+                // Friction & Center pull
+                nodes.forEach(n => {
+                    if (n === draggingNode) return;
+                    n.vx += (0 - n.x) * 0.001;
+                    n.vy += (0 - n.y) * 0.001;
+                    n.vx *= 0.85; n.vy *= 0.85;
+                    n.x += n.vx; n.y += n.vy;
+                });
+            }
+
+            function loop() {
+                if (!isOpen) return;
+                physics();
+                render();
+                animId = requestAnimationFrame(loop);
+            }
+
+            function render() {
+                ctx.clearRect(0, 0, width, height);
+                ctx.save();
+                ctx.translate(width / 2, height / 2);
+                ctx.scale(cam.zoom, cam.zoom);
+                ctx.translate(-cam.x, -cam.y);
+
+                // Draw Edges
+                ctx.strokeStyle = 'rgba(0, 212, 255, 0.12)';
+                ctx.lineWidth = 1 / cam.zoom;
+                ctx.beginPath();
+                edges.forEach(e => {
+                    const n1 = nodes.find(n => n.id === e.source);
+                    const n2 = nodes.find(n => n.id === e.target);
+                    if (!n1 || !n2) return;
+                    ctx.moveTo(n1.x, n1.y);
+                    ctx.lineTo(n2.x, n2.y);
+                });
+                ctx.stroke();
+
+                // Draw Nodes
+                filteredNodes.forEach(n => {
+                    const isSelected = selectedNode && selectedNode.id === n.id;
+                    const isHovered = hoveredNode && hoveredNode.id === n.id;
+                    ctx.beginPath();
+                    ctx.arc(n.x, n.y, (isSelected || isHovered) ? n.radius + 3 : n.radius, 0, Math.PI * 2);
+
+                    if (n.type === 'concept' || n.type === 'wiki') {
+                        ctx.fillStyle = (isSelected || isHovered) ? '#fff' : '#ffd700';
+                        ctx.shadowColor = '#ffd700';
+                    } else {
+                        ctx.fillStyle = (isSelected || isHovered) ? '#fff' : '#00d4ff';
+                        ctx.shadowColor = '#00d4ff';
+                    }
+
+
+                    ctx.shadowBlur = (isSelected || isHovered) ? 15 : 0;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                });
+
+                ctx.restore();
+
+                if (hoveredNode) {
+                    const pos = w2s(hoveredNode.x, hoveredNode.y);
+                    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+                    ctx.strokeStyle = (hoveredNode.type === 'concept' || hoveredNode.type === 'wiki') ? '#ffd700' : '#00d4ff';
+
+                    ctx.lineWidth = 1;
+                    const text = hoveredNode.title;
+                    const textWidth = ctx.measureText(text).width;
+                    ctx.fillRect(pos.x + 10, pos.y - 35, textWidth + 20, 30);
+                    ctx.strokeRect(pos.x + 10, pos.y - 35, textWidth + 20, 30);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '13px Inter, sans-serif';
+                    ctx.fillText(text, pos.x + 20, pos.y - 15);
+                }
+            }
+
+            function autoFit() {
+                if (filteredNodes.length === 0) return;
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                filteredNodes.forEach(n => {
+                    minX = Math.min(minX, n.x); minY = Math.min(minY, n.y);
+                    maxX = Math.max(maxX, n.x); maxY = Math.max(maxY, n.y);
+                });
+                const graphWidth = maxX - minX + 200;
+                const graphHeight = maxY - minY + 200;
+                cam.x = (minX + maxX) / 2;
+                cam.y = (minY + maxY) / 2;
+                cam.zoom = Math.min((width - 120) / graphWidth, (height - 120) / graphHeight, 1.0);
+                cam.zoom = Math.max(cam.zoom, 0.1);
+            }
+
+            async function selectNode(node) {
+                selectedNode = node;
+                detailEmpty.style.display = 'none';
+                detailContent.style.display = 'flex';
+                detailTitle.textContent = node.title;
+
+                const sessionInfo = document.getElementById('mv-session-only-info');
+                const conceptInfo = document.getElementById('mv-concept-only-info');
+                const sessionActions = document.getElementById('mv-session-actions');
+                const conceptActions = document.getElementById('mv-concept-actions');
+
+                if (node.type === 'session') {
+                    sessionInfo.style.display = 'block';
+                    conceptInfo.style.display = 'none';
+                    sessionActions.style.display = 'block';
+                    conceptActions.style.display = 'none';
+                    detailDates.innerHTML = `Creato: ${new Date(node.created_at).toLocaleString()} · Aggiornato: ${new Date(node.updated_at).toLocaleString()}`;
+
+                    try {
+                        const resp = await fetch(`/sessions/${node.id}`);
+                        const data = await resp.json();
+                        const wordCount = data.messages.reduce((acc, m) => acc + (m.content ? m.content.split(/\s+/).length : 0), 0);
+                        detailStats.innerHTML = `${data.messages.length} messaggi · ${wordCount} parole totali`;
+
+                        detailPreview.innerHTML = '';
+                        data.messages.slice(0, 5).forEach(m => {
+                            const div = document.createElement('div');
+                            div.className = `mv-preview-msg ${m.role}`;
+                            const content = m.content || '';
+                            div.innerHTML = `<span class="role">${m.role}</span>${content.substring(0, 180)}${content.length > 180 ? '...' : ''}`;
+                            detailPreview.appendChild(div);
+                        });
+                    } catch (err) { console.error('Error fetching details:', err); }
+                } else if (node.type === 'wiki' || node.type === 'concept') {
+                    sessionInfo.style.display = 'none';
+                    conceptInfo.style.display = 'block';
+                    sessionActions.style.display = 'none';
+                    conceptActions.style.display = 'block';
+                    detailDates.innerHTML = node.type === 'wiki' ? 
+                        `Pagina Wiki · Ultima modifica: ${new Date(node.updated_at).toLocaleString()}` : 
+                        `Concetto sintetizzato dalla memoria a lungo termine`;
+                    document.getElementById('mv-concept-body').textContent = node.content;
+                }
+
+            }
+
+            return { init };
+        })();
+
+        MemoryView.init();
+
+        Graph.initGraph();
+        fetchGraph();
+        checkUninet();
+
+        // Auto-continue most recent session
+        (async () => {
+            try {
+                const resp = await fetch('/sessions');
+                const sessions = await resp.json();
+                if (sessions && sessions.length > 0) {
+                    viewingSessionId = sessions[0].id;
+                    spContinueBtn.onclick();
+                }
+            } catch (err) {
+                console.warn('Could not auto-load session', err);
+            }
+        })();
+    </script>
+</body>
+
+</html>
