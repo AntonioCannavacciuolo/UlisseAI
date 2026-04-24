@@ -96,17 +96,8 @@ project_root = script_dir.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-# Load optional Uninet plugin
-_uninet_context_fn = None
 extra_tools = []
 extra_tool_handlers = {}
-
-try:
-    from scripts.uninet_plugin import register_uninet_routes, get_uninet_context
-    _uninet_context_fn = get_uninet_context
-    register_uninet_routes(app, corpus_dir, extra_tools, extra_tool_handlers)
-except ImportError:
-    print("Uninet plugin not found. Skipping.")
 
 # --- Wiki Tools Implementation ---
 def wiki_read_page(args):
@@ -375,7 +366,6 @@ def chat():
         except Exception as e:
             print(f"ChromaDB search error: {e}")
             
-    uninet_context = _uninet_context_fn(user_message) if _uninet_context_fn else ""
     
 
     # Load system prompt from file or use default
@@ -401,7 +391,6 @@ def chat():
         "=== MEMORIA RECUPERATA (STM) ===\n"
         f"{context_text}\n"
         "=========================\n"
-        f"{uninet_context}"
     )
 
     
