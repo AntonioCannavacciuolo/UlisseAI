@@ -283,56 +283,6 @@
             background: rgba(0, 212, 255, .5)
         }
 
-        .publish-btn {
-            font-size: 11px;
-            margin-top: 8px;
-            padding: 4px 8px;
-            border: 1px solid var(--cyan);
-            background: rgba(0, 212, 255, 0.1);
-            color: var(--cyan);
-            border-radius: 4px;
-            cursor: pointer;
-            display: inline-block;
-            font-family: 'Courier New', monospace;
-        }
-
-        .publish-btn:hover {
-            background: rgba(0, 212, 255, 0.3);
-        }
-
-        #publish-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 100;
-            justify-content: center;
-            align-items: center;
-        }
-
-        #publish-modal-content {
-            background: #0a0a1a;
-            border: 1px solid var(--cyan);
-            border-radius: 8px;
-            padding: 25px;
-            width: 500px;
-            max-width: 90%;
-            box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        #publish-modal-content h3 {
-            margin: 0;
-            color: var(--cyan);
-            font-family: 'Courier New', monospace;
-            text-transform: uppercase;
-        }
-
         .form-group {
             display: flex;
             flex-direction: column;
@@ -368,20 +318,6 @@
             justify-content: flex-end;
             gap: 10px;
             margin-top: 10px;
-        }
-
-        #pub-result {
-            font-size: 13px;
-            margin-top: 10px;
-            font-family: 'Courier New', monospace;
-        }
-
-        .pub-success {
-            color: #44cc88;
-        }
-
-        .pub-error {
-            color: #ff4444;
         }
 
         /* --- NEW CHAT UX STYLES --- */
@@ -1100,59 +1036,6 @@
             background: rgba(0, 212, 255, .5)
         }
 
-        .publish-btn {
-            font-size: 11px;
-            margin-top: 8px;
-            padding: 6px 10px;
-            border: 1px solid var(--cyan);
-            background: rgba(0, 212, 255, 0.1);
-            color: var(--cyan);
-            border-radius: 4px;
-            cursor: pointer;
-            display: inline-block;
-            font-family: 'Courier New', monospace;
-        }
-
-        .publish-btn:hover {
-            background: rgba(0, 212, 255, 0.3);
-        }
-
-        #publish-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 100;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-
-        #publish-modal-content {
-            background: #0a0a1a;
-            border: 1px solid var(--cyan);
-            border-radius: 8px;
-            padding: 25px;
-            width: 500px;
-            max-width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        #publish-modal-content h3 {
-            margin: 0;
-            color: var(--cyan);
-            font-family: 'Courier New', monospace;
-            text-transform: uppercase;
-        }
-
         .form-group {
             display: flex;
             flex-direction: column;
@@ -1190,21 +1073,6 @@
             gap: 10px;
             margin-top: 10px;
             flex-wrap: wrap;
-        }
-
-        #pub-result {
-            font-size: 13px;
-            margin-top: 10px;
-            font-family: 'Courier New', monospace;
-            word-break: break-word;
-        }
-
-        .pub-success {
-            color: #44cc88;
-        }
-
-        .pub-error {
-            color: #ff4444;
         }
 
         /* ===================================================== */
@@ -1364,11 +1232,6 @@
 
             #message-input {
                 width: 100%;
-            }
-
-            .publish-btn {
-                width: 100%;
-                text-align: center;
             }
 
             #left-panel {
@@ -1720,12 +1583,6 @@
                     <button id="new-chat-btn">🗑️ Nuova chat</button>
                 </div>
                 ULISSE BRAIN
-                <div id="uninet-indicator"
-                    style="position:absolute; right:20px; top:32px; font-size:12px; display:flex; align-items:center; gap:5px; color:rgba(255,255,255,0.6); text-shadow:none; letter-spacing:1px; text-transform:none; font-weight:normal;">
-                    <span id="uninet-dot"
-                        style="width:8px; height:8px; border-radius:50%; background:gray; box-shadow:0 0 5px gray;"></span>
-                    Uninet
-                </div>
             </div>
             <div class="chat-messages" id="chat-messages">
                 <div class="empty-state" id="empty-state">
@@ -1761,33 +1618,6 @@
                 </div>
                 <input type="file" id="file-input" style="display:none"
                     accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.json">
-            </div>
-        </div>
-    </div>
-
-    <div id="publish-modal">
-        <div id="publish-modal-content">
-            <h3>Pubblica su Uninet</h3>
-            <div class="form-group">
-                <label>Titolo Nodo</label>
-                <input type="text" id="pub-title" />
-            </div>
-            <div class="form-group">
-                <label>Contenuto</label>
-                <textarea id="pub-content" rows="6"></textarea>
-            </div>
-            <div class="form-group">
-                <label>Destinazione</label>
-                <select id="pub-dest">
-                    <option value="dokuwiki">DokuWiki</option>
-                    <option value="nextcloud">Nextcloud</option>
-                    <option value="both">Entrambi</option>
-                </select>
-            </div>
-            <div id="pub-result"></div>
-            <div class="modal-actions">
-                <button id="pub-cancel" style="border-color: rgba(255,255,255,0.3); color: #aaa;">Annulla</button>
-                <button id="pub-confirm">Pubblica</button>
             </div>
         </div>
     </div>
@@ -2453,14 +2283,6 @@
                 m.appendChild(s);
             }
 
-            if (role === 'assistant') {
-                const pb = document.createElement('button');
-                pb.classList.add('publish-btn');
-                pb.textContent = '📤 Pubblica su Uninet';
-                pb.onclick = () => openPublishModal(text);
-                m.appendChild(pb);
-            }
-
             const ts = document.createElement('div');
             ts.classList.add('timestamp');
             ts.textContent = timestamp;
@@ -2674,87 +2496,6 @@
             });
         } else {
             console.warn('ATTENZIONE: Pulsante refresh-graph-btn non trovato nel DOM!');
-        }
-
-        // Publish Modal Logic
-        const pubModal = document.getElementById('publish-modal');
-        const pubTitle = document.getElementById('pub-title');
-        const pubContent = document.getElementById('pub-content');
-        const pubDest = document.getElementById('pub-dest');
-        const pubResult = document.getElementById('pub-result');
-        const pubConfirm = document.getElementById('pub-confirm');
-
-        function openPublishModal(text) {
-            const words = text.split(/\s+/).filter(w => w.length > 0);
-            let title = words.slice(0, 6).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-            if (!title) title = "Nuova Ricerca";
-
-            pubTitle.value = title;
-            pubContent.value = text;
-            pubResult.innerHTML = '';
-            pubResult.className = '';
-            pubModal.style.display = 'flex';
-            pubConfirm.disabled = false;
-        }
-
-        document.getElementById('pub-cancel').addEventListener('click', () => {
-            pubModal.style.display = 'none';
-        });
-
-        pubConfirm.addEventListener('click', async () => {
-            const title = pubTitle.value.trim();
-            const content = pubContent.value.trim();
-            const destination = pubDest.value;
-
-            if (!title || !content) return;
-
-            pubConfirm.disabled = true;
-            pubResult.innerHTML = 'Pubblicazione in corso...';
-            pubResult.className = '';
-
-            try {
-                const resp = await fetch('/publish', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title, content, destination })
-                });
-                const data = await resp.json();
-                if (data.error) {
-                    pubResult.className = 'pub-error';
-                    pubResult.innerHTML = 'Errore: ' + data.error;
-                } else if (data.details) {
-                    pubResult.className = data.success ? 'pub-success' : 'pub-error';
-                    let resHtml = data.success ? 'Pubblicato con successo!<br/>' : 'Risultati della pubblicazione:<br/>';
-                    data.details.forEach(d => {
-                        if (d.success) resHtml += `✅ ${d.dest}: <a href="${d.url_or_error}" target="_blank" style="color:var(--cyan)">Apri</a><br/>`;
-                        else resHtml += `❌ ${d.dest}: ${d.url_or_error}<br/>`;
-                    });
-                    pubResult.innerHTML = resHtml;
-                }
-                pubConfirm.disabled = false;
-            } catch (err) {
-                pubResult.className = 'pub-error';
-                pubResult.innerHTML = 'Errore di connessione: ' + err.message;
-                pubConfirm.disabled = false;
-            }
-        });
-
-        async function checkUninet() {
-            try {
-                const resp = await fetch('/uninet/pages');
-                if (resp.ok) {
-                    const data = await resp.json();
-                    if (data.pages && Array.isArray(data.pages)) {
-                        document.getElementById('uninet-dot').style.background = '#44cc88';
-                        document.getElementById('uninet-dot').style.boxShadow = '0 0 8px #44cc88';
-                        return;
-                    }
-                }
-            } catch (err) {
-                console.warn('Uninet offline', err);
-            }
-            document.getElementById('uninet-dot').style.background = '#ff4444';
-            document.getElementById('uninet-dot').style.boxShadow = '0 0 8px #ff4444';
         }
 
         // --- Session Panel Logic ---
