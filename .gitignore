@@ -36,6 +36,9 @@ setup_autostart.ps1
 start_ulisse.bat
 uninstall_services.ps1
 
+# Uninet publisher script
+scripts/uninet_publisher.py
+
 # HuggingFace models cache
 hf_cache/
 OpenAIChats/
