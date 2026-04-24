@@ -1490,7 +1490,6 @@
                 border-top: 1px solid rgba(255, 255, 255, 0.1);
             }
         }
-
     </style>
 
 </head>
@@ -1602,46 +1601,45 @@
                     <div style="font-size: 40px; margin-bottom: 20px; opacity: 0.3;">🧠</div>
                 </div>
 
+            </div>
+
+            <div id="mv-detail-content" style="display:none">
+                <div class="mv-detail-header">
+                    <h2 id="mv-detail-title" contenteditable="true">Titolo</h2>
+                    <div class="mv-detail-dates" id="mv-detail-dates">
+                        <!-- Date info -->
+                    </div>
                 </div>
 
-                <div id="mv-detail-content" style="display:none">
-                    <div class="mv-detail-header">
-                        <h2 id="mv-detail-title" contenteditable="true">Titolo</h2>
-                        <div class="mv-detail-dates" id="mv-detail-dates">
-                            <!-- Date info -->
-                        </div>
+                <div id="mv-session-only-info">
+                    <div class="mv-detail-stats" id="mv-detail-stats">
+                        0 messaggi · 0 parole
                     </div>
-
-                    <div id="mv-session-only-info">
-                        <div class="mv-detail-stats" id="mv-detail-stats">
-                            0 messaggi · 0 parole
-                        </div>
-                        <div class="mv-detail-preview" id="mv-detail-preview">
-                            <!-- Message previews -->
-                        </div>
+                    <div class="mv-detail-preview" id="mv-detail-preview">
+                        <!-- Message previews -->
                     </div>
+                </div>
 
-                    <div id="mv-concept-only-info" style="display:none">
-                        <div id="mv-concept-body" class="mv-synthetic-text"
-                            style="max-height: none; overflow: visible;">
-                            <!-- Concept content -->
-                        </div>
+                <div id="mv-concept-only-info" style="display:none">
+                    <div id="mv-concept-body" class="mv-synthetic-text" style="max-height: none; overflow: visible;">
+                        <!-- Concept content -->
                     </div>
+                </div>
 
-                    <div class="mv-detail-actions">
-                        <div id="mv-session-actions">
-                            <button id="mv-open-chat-btn" class="mv-btn mv-btn-primary">▶ APRI QUESTA CHAT</button>
-                            <button id="mv-delete-btn" class="mv-btn mv-btn-danger">🗑️ ELIMINA</button>
-                        </div>
-                        <div id="mv-concept-actions" style="display:none">
-                            <div style="font-size: 11px; opacity: 0.5; font-style: italic;">
-                                Questo è un concetto sintetizzato dalla tua memoria a lungo termine.
-                            </div>
+                <div class="mv-detail-actions">
+                    <div id="mv-session-actions">
+                        <button id="mv-open-chat-btn" class="mv-btn mv-btn-primary">▶ APRI QUESTA CHAT</button>
+                        <button id="mv-delete-btn" class="mv-btn mv-btn-danger">🗑️ ELIMINA</button>
+                    </div>
+                    <div id="mv-concept-actions" style="display:none">
+                        <div style="font-size: 11px; opacity: 0.5; font-style: italic;">
+                            Questo è un concetto sintetizzato dalla tua memoria a lungo termine.
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
     </div>
 
     <script>
@@ -3007,8 +3005,8 @@
                     conceptInfo.style.display = 'block';
                     sessionActions.style.display = 'none';
                     conceptActions.style.display = 'block';
-                    detailDates.innerHTML = node.type === 'wiki' ? 
-                        `Pagina Wiki · Ultima modifica: ${new Date(node.updated_at).toLocaleString()}` : 
+                    detailDates.innerHTML = node.type === 'wiki' ?
+                        `Pagina Wiki · Ultima modifica: ${new Date(node.updated_at).toLocaleString()}` :
                         `Concetto sintetizzato dalla memoria a lungo termine`;
                     document.getElementById('mv-concept-body').textContent = node.content;
                 }
