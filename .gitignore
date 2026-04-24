@@ -33,5 +33,3 @@ __pycache__/
 # HuggingFace models cache
 hf_cache/
 OpenAIChats/
-*.ps1
-*.bat
