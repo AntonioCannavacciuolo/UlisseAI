@@ -30,8 +30,12 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Scripts
+install_services.ps1
+setup_autostart.ps1
+start_ulisse.bat
+uninstall_services.ps1
+
 # HuggingFace models cache
 hf_cache/
 OpenAIChats/
-*.ps1
-*.bat
