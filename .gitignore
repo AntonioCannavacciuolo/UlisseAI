@@ -37,6 +37,7 @@ start_ulisse.bat
 uninstall_services.ps1
 
 # Uninet publisher script
+scripts/uninet_plugin.py
 scripts/uninet_publisher.py
 
 # HuggingFace models cache

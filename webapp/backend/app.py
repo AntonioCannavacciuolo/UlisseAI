@@ -90,19 +90,15 @@ project_root = script_dir.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
+# Load optional Uninet plugin
+_uninet_context_fn = None
 try:
-    from scripts.uninet_publisher import (
-        publish_to_dokuwiki, publish_to_nextcloud,
-        list_dokuwiki_pages, read_dokuwiki_page, read_ulisse_nextcloud_files
-    )
-except ImportError as e:
-    print(f"Warning: could not import uninet_publisher: {e}")
-    publish_to_dokuwiki = None
-    publish_to_nextcloud = None
-    list_dokuwiki_pages = None
-    read_dokuwiki_page = None
-    read_ulisse_nextcloud_files = None
-
+    from scripts.uninet_plugin import register_uninet_routes, get_uninet_context
+    _uninet_context_fn = get_uninet_context
+    register_uninet_routes(app, corpus_dir)
+    print("Uninet plugin loaded.")
+except ImportError:
+    print("Uninet plugin not found. Skipping.")
 
 @app.route("/health", methods=["GET"])
 def health():
@@ -253,37 +249,9 @@ def chat():
         except Exception as e:
             print(f"ChromaDB search error: {e}")
             
-    uninet_context = ""
-    try:
-        if list_dokuwiki_pages and read_ulisse_nextcloud_files:
-            pages = list_dokuwiki_pages()
-            matched_pages = []
-            user_msg_lower = user_message.lower()
-            action_words = ["explore", "read", "open", "leggi", "apri", "esplora"]
-            has_action = any(w in user_msg_lower for w in action_words)
-            
-            for p in pages:
-                page_name = p.split(":")[-1].replace("_", " ").lower()
-                exact_id = p.lower()
-                
-                # Fetch content if user mentions the page name/ID AND an action word is present
-                if has_action and (page_name in user_msg_lower or exact_id in user_msg_lower):
-                    content = read_dokuwiki_page(p)
-                    if content:
-                        matched_pages.append(f"Contenuto del Documento Wiki ({p}):\n{content}")
-            
-            if pages:
-                matched_pages.append("Pagine DokuWiki attualmente disponibili nel sistema Uninet:\n" + "\n".join(f"- {p}" for p in pages))
-                
-            nc_files = read_ulisse_nextcloud_files()
-            if nc_files:
-                matched_pages.append("File pubblicati in Nextcloud disponibili in /Ulisse/ricerche/:\n" + "\n".join(f"- {f}" for f in nc_files))
-                
-            if matched_pages:
-                uninet_context = "\n=== CONOSCENZA UNINET ===\n" + "\n\n".join(matched_pages) + "\n========================="
-    except Exception as e:
-        print(f"Uninet context error: {e}")
-        
+    uninet_context = _uninet_context_fn(user_message) if _uninet_context_fn else ""
+    
+
     # Load system prompt from file or use default
     system_prompt_path = corpus_dir / "system_prompt.txt"
     if system_prompt_path.exists():
@@ -739,54 +707,6 @@ def get_graph():
         print(f"Graph generation error: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route("/publish", methods=["POST"])
-def publish_content():
-    data = request.json
-    title = data.get("title", "Untitled")
-    content = data.get("content", "")
-    destination = data.get("destination", "both")
-    
-    if not title or not content:
-        return jsonify({"success": False, "error": "Title and content are required"}), 400
-        
-    if not publish_to_dokuwiki or not publish_to_nextcloud:
-        return jsonify({"success": False, "error": "Publisher module not loaded"}), 500
-        
-    results = []
-    success_overall = True
-    
-    if destination in ("dokuwiki", "both"):
-        success, res = publish_to_dokuwiki(title, content)
-        if not success: success_overall = False
-        results.append({"dest": "DokuWiki", "success": success, "url_or_error": res})
-        
-    if destination in ("nextcloud", "both"):
-        success, res = publish_to_nextcloud(title, content)
-        if not success: success_overall = False
-        results.append({"dest": "Nextcloud", "success": success, "url_or_error": res})
-        
-    return jsonify({
-        "success": success_overall,
-        "details": results
-    })
-
-@app.route("/uninet/pages", methods=["GET"])
-def uninet_pages():
-    pages = list_dokuwiki_pages() if list_dokuwiki_pages else []
-    return jsonify({"pages": pages})
-
-@app.route("/uninet/page", methods=["GET"])
-def uninet_page():
-    page_id = request.args.get("id")
-    if not page_id:
-        return jsonify({"error": "Missing id"}), 400
-    content = read_dokuwiki_page(page_id) if read_dokuwiki_page else None
-    return jsonify({"id": page_id, "content": content})
-
-@app.route("/uninet/ulisse-files", methods=["GET"])
-def uninet_files():
-    files = read_ulisse_nextcloud_files() if read_ulisse_nextcloud_files else []
-    return jsonify({"files": files})
 
 @app.route("/", methods=["GET"])
 def index():
