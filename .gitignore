@@ -16,7 +16,8 @@ corpus/system_prompt.txt
 corpus/*.json
 corpus/*.jsonl
 corpus/*.md
-corpus/wiki/pages/*
+corpus/wiki/pages/*.md
+corpus/wiki/log.md
 vectordb/
 vault/
 
