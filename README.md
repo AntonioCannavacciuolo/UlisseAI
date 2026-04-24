@@ -19,9 +19,9 @@ It works with:
 
 Ulisse is built on three layers:
 
-1. **Current conversation** — what you're saying now, immediate context.
-2. **Vector memory** (RAG) — past conversations, uploaded documents, notes. Retrieves what's relevant to the current question.
-3. **Synthetic memory** — a structured document summarizing everything you've shared, updated automatically. Like ChatGPT's memory, but fully yours.
+1. **Current conversation** — Immediate context of the chat.
+2. **Short-Term Memory (STM - RAG)** — Context-aware retrieval from past sessions and documents using ChromaDB.
+3. **Long-Term Memory (LTM - LLM Wiki)** — An AI-managed semantic Wiki (Markdown) where Ulisse synthesizes and organizes persistent knowledge, projects, and facts.
 
 The user doesn't need to configure any of this. It works out of the box.
 
@@ -29,18 +29,21 @@ The user doesn't need to configure any of this. It works out of the box.
 
 ## Stack
 
-- Python 3.11
-- ChromaDB (vector database)
+- Python 3.11+
+- ChromaDB (vector database for STM)
 - Deepseek API (or any OpenAI-compatible provider)
-- Obsidian vault (visual knowledge graph)
-- Node.js webapp (frontend interface)
+- Semantic Wiki (Markdown-based LTM)
+- Obsidian-compatible knowledge graph
+- Flask + Vanilla JS Frontend
 
 ---
 
 ## Main flow
 
 ```
-JSON export → scripts → ChromaDB vectordb → LLM API → webapp
+Chat Interaction ↔ AI Tool Calling ↔ Semantic Wiki (LTM)
+       ↕
+  ChromaDB (STM)
 ```
 
 ---
@@ -76,20 +79,6 @@ python webapp/backend/app.py
 Open your browser at `http://localhost:5000`.
 
 ---
-
-## Windows Services (NSSM)
-
-To run the backend and sync watcher as persistent Windows Services:
-
-1. Ensure [NSSM](https://nssm.cc/) is installed at `C:\nssm-2.24\win64\nssm.exe`.
-2. Run `powershell .\install_services.ps1` as **Administrator**.
-3. Manage services via `services.msc` (look for `Ulisse Brain - Backend` and `Ulisse Brain - Sync Watcher`).
-
-To remove services:
-
-```powershell
-powershell .\uninstall_services.ps1
-```
 
 ---
 
