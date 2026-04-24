@@ -17,6 +17,7 @@ corpus/*.json
 corpus/*.jsonl
 corpus/*.md
 corpus/wiki/pages/*.md
+corpus/wiki/raw/*
 corpus/wiki/log.md
 vectordb/
 vault/
