@@ -30,7 +30,7 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Scripts
+# Personal startup scripts
 install_services.ps1
 setup_autostart.ps1
 start_ulisse.bat
