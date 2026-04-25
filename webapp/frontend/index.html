@@ -1514,21 +1514,21 @@
                 <div class="header-left">
                     <button id="memoria-btn"
                         style="font-size: 13px; padding: 8px 15px; background: rgba(0, 212, 255, 0.05); border: 1px solid rgba(0, 212, 255, 0.3); text-transform: none; letter-spacing: 0; color: var(--cyan); margin-right: 10px;">🧠
-                        Memoria</button>
-                    <button id="new-chat-btn">🗑️ Nuova chat</button>
+                        Memory</button>
+                    <button id="new-chat-btn">🗑️ New chat</button>
                 </div>
                 ULISSE BRAIN
             </div>
             <div class="chat-messages" id="chat-messages">
                 <div class="empty-state" id="empty-state">
-                    <h2>Cosa vuoi esplorare oggi, Toni?</h2>
+                    <h2>What do you want to explore today, Toni?</h2>
                     <div class="suggestion-chips">
-                        <div class="suggestion-chip" onclick="useSuggestion('Cosa ricordi di me?')">Cosa ricordi di me?
+                        <div class="suggestion-chip" onclick="useSuggestion('What do you remember about me?')">What do you remember about me?
                         </div>
-                        <div class="suggestion-chip" onclick="useSuggestion('Parliamo di un progetto')">Parliamo di un
-                            progetto</div>
-                        <div class="suggestion-chip" onclick="useSuggestion('Cosa hai imparato oggi?')">Cosa hai
-                            imparato oggi?</div>
+                        <div class="suggestion-chip" onclick="useSuggestion('Let\'s talk about a project')">Let's talk about a
+                            project</div>
+                        <div class="suggestion-chip" onclick="useSuggestion('What have you learned today?')">What have you
+                            learned today?</div>
                     </div>
                 </div>
             </div>
@@ -1537,10 +1537,10 @@
             <div class="chat-input-area">
                 <div class="chat-input-container">
                     <div class="input-actions">
-                        <button id="attach-btn" title="Allega file (Img, PDF, TXT, MD, JSON)">📎</button>
-                        <textarea id="message-input" placeholder="Invia un messaggio alla rete neurale..."
+                        <button id="attach-btn" title="Attach file (Img, PDF, TXT, MD, JSON)">📎</button>
+                        <textarea id="message-input" placeholder="Send a message to the neural network..."
                             autocomplete="off" rows="1"></textarea>
-                        <button id="send-btn" title="Invia">
+                        <button id="send-btn" title="Send">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -1549,7 +1549,7 @@
                         </button>
                         <button id="stop-btn">⏹ STOP</button>
                     </div>
-                    <div id="char-count">0 caratteri</div>
+                    <div id="char-count">0 characters</div>
                 </div>
                 <input type="file" id="file-input" style="display:none"
                     accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.json">
@@ -1559,36 +1559,36 @@
 
     <div id="session-panel">
         <div class="sp-header">
-            <h2 id="sp-title" contenteditable="true">Titolo Sessione</h2>
-            <div class="sp-meta">Creato il: <span id="sp-date">--/--/----</span></div>
+            <h2 id="sp-title" contenteditable="true">Session Title</h2>
+            <div class="sp-meta">Created on: <span id="sp-date">--/--/----</span></div>
         </div>
         <div class="sp-body">
             <div class="sp-history-preview" id="sp-history-preview">
                 <!-- Messages will be injected here -->
             </div>
             <div class="related-section">
-                <h4>Chat correlate</h4>
+                <h4>Related chats</h4>
                 <div class="related-list" id="sp-related-list"></div>
             </div>
         </div>
         <div class="sp-actions">
-            <button id="sp-continue-btn" class="sp-btn sp-btn-primary">▶ CONTINUA QUESTA CHAT</button>
-            <button id="sp-delete-btn" class="sp-btn sp-btn-danger">🗑️ ELIMINA SESSIONE</button>
+            <button id="sp-continue-btn" class="sp-btn sp-btn-primary">▶ CONTINUE THIS CHAT</button>
+            <button id="sp-delete-btn" class="sp-btn sp-btn-danger">🗑️ DELETE SESSION</button>
             <button id="sp-close-btn" class="sp-btn"
-                style="border-color:rgba(255,255,255,0.2); color:#888;">CHIUDI</button>
+                style="border-color:rgba(255,255,255,0.2); color:#888;">CLOSE</button>
         </div>
     </div>
 
     <!-- Memory View Overlay -->
     <div id="memory-view" class="overlay">
         <div id="memory-view-header">
-            <div id="memory-view-title">SYNTHETIC MEMORY</div>
+            <div id="memory-view-title">LONG-TERM MEMORY</div>
             <div id="mv-stats-bar" style="font-size: 11px; opacity: 0.6; font-family: 'Courier New', monospace;">
-                🧠 Caricamento dati...
+                🧠 Loading data...
             </div>
             <div style="flex: 1"></div>
             <div id="mv-search-container">
-                <input type="text" id="mv-search-input" placeholder="Cerca tra ricordi e concetti...">
+                <input type="text" id="mv-search-input" placeholder="Search memories and concepts...">
             </div>
             <div id="mv-close-btn">&times;</div>
         </div>
@@ -1605,7 +1605,7 @@
 
             <div id="mv-detail-content" style="display:none">
                 <div class="mv-detail-header">
-                    <h2 id="mv-detail-title" contenteditable="true">Titolo</h2>
+                    <h2 id="mv-detail-title" contenteditable="true">Title</h2>
                     <div class="mv-detail-dates" id="mv-detail-dates">
                         <!-- Date info -->
                     </div>
@@ -1613,7 +1613,7 @@
 
                 <div id="mv-session-only-info">
                     <div class="mv-detail-stats" id="mv-detail-stats">
-                        0 messaggi · 0 parole
+                        0 messages · 0 words
                     </div>
                     <div class="mv-detail-preview" id="mv-detail-preview">
                         <!-- Message previews -->
@@ -1628,12 +1628,12 @@
 
                 <div class="mv-detail-actions">
                     <div id="mv-session-actions">
-                        <button id="mv-open-chat-btn" class="mv-btn mv-btn-primary">▶ APRI QUESTA CHAT</button>
-                        <button id="mv-delete-btn" class="mv-btn mv-btn-danger">🗑️ ELIMINA</button>
+                        <button id="mv-open-chat-btn" class="mv-btn mv-btn-primary">▶ OPEN THIS CHAT</button>
+                        <button id="mv-delete-btn" class="mv-btn mv-btn-danger">🗑️ DELETE</button>
                     </div>
                     <div id="mv-concept-actions" style="display:none">
                         <div style="font-size: 11px; opacity: 0.5; font-style: italic;">
-                            Questo è un concetto sintetizzato dalla tua memoria a lungo termine.
+                            This is a concept synthesized from your long-term memory.
                         </div>
                     </div>
                 </div>
@@ -1993,7 +1993,7 @@
 
         function updateCharCount() {
             const count = messageInput.value.length;
-            charCount.textContent = `${count} caratteri`;
+            charCount.textContent = `${count} characters`;
             charCount.style.color = count > 1000 ? '#ff4444' : 'rgba(255, 255, 255, 0.3)';
         }
 
@@ -2023,7 +2023,7 @@
             if (!file) return;
 
             if (file.size > 10 * 1024 * 1024) {
-                alert('File troppo grande (max 10MB)');
+                alert('File too large (max 10MB)');
                 fileInput.value = '';
                 return;
             }
@@ -2071,7 +2071,7 @@
 
         // --- Conversation Management ---
         newChatBtn.onclick = () => {
-            if (history.length === 0 || confirm('Vuoi iniziare una nuova conversazione? La storia corrente andrà persa.')) {
+            if (history.length === 0 || confirm('Start a new conversation? Current history will be lost.')) {
                 activeSessionId = null;
                 history = [];
                 chatMessages.innerHTML = '';
@@ -2096,10 +2096,10 @@
             try {
                 await navigator.clipboard.writeText(text);
                 const originalText = btn.textContent;
-                btn.textContent = '✓ Copiato!';
+                btn.textContent = '✓ Copied!';
                 setTimeout(() => btn.textContent = originalText, 2000);
             } catch (err) {
-                console.error('Errore copia:', err);
+                console.error('Copy error:', err);
             }
         }
 
@@ -2154,13 +2154,13 @@
             } else {
                 const copyBtn = document.createElement('button');
                 copyBtn.classList.add('msg-action-btn');
-                copyBtn.textContent = '📋 Copia';
+                copyBtn.textContent = '📋 Copy';
                 copyBtn.onclick = () => copyToClipboard(text, copyBtn);
                 actions.appendChild(copyBtn);
 
                 const retryBtn = document.createElement('button');
                 retryBtn.classList.add('msg-action-btn');
-                retryBtn.textContent = '🔄 Riprova';
+                retryBtn.textContent = '🔄 Retry';
                 retryBtn.onclick = retryLastMessage;
                 actions.appendChild(retryBtn);
             }
@@ -2215,8 +2215,8 @@
                 <div class="inline-edit-area">
                     <textarea class="inline-edit-textarea" rows="3">${originalText}</textarea>
                     <div class="edit-actions">
-                        <button class="msg-action-btn" onclick="cancelEdit()">✗ Annulla</button>
-                        <button class="msg-action-btn" onclick="confirmEdit()">✓ Conferma</button>
+                        <button class="msg-action-btn" onclick="cancelEdit()">✗ Cancel</button>
+                        <button class="msg-action-btn" onclick="confirmEdit()">✓ Confirm</button>
                     </div>
                 </div>
             `;
@@ -2288,7 +2288,7 @@
                 isGenerating = false;
                 removeTyping();
                 Graph.stopThinking();
-                appendMessage('assistant', 'Generazione interrotta.');
+                appendMessage('assistant', 'Generation interrupted.');
                 setLoadingState(false);
             }
         }

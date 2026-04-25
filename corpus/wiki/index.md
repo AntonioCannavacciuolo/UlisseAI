@@ -1,5 +1,5 @@
 # Wiki Index
-Benvenuto nella memoria a lungo termine di Ulisse.
+Welcome to Ulisse's long-term memory.
 
-## Categorie
-- [ ] Nessuna pagina ancora creata.
+## Categories
+- [ ] No pages created yet.

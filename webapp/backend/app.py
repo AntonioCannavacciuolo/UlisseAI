@@ -107,10 +107,10 @@ def wiki_read_page(args):
         safe_title = re.sub(r'[^\w\s-]', '', title).strip().replace(' ', '_')
         path = wiki_pages_dir / f"{safe_title}.md"
         if path.exists():
-            return f"Contenuto di [[{title}]]:\n\n" + path.read_text(encoding="utf-8")
-        return f"La pagina [[{title}]] non esiste ancora."
+            return f"Content of [[{title}]]:\n\n" + path.read_text(encoding="utf-8")
+        return f"The page [[{title}]] does not exist yet."
     except Exception as e:
-        return f"Errore lettura wiki: {str(e)}"
+        return f"Wiki read error: {str(e)}"
 
 def wiki_write_page(args):
     try:
@@ -120,16 +120,16 @@ def wiki_write_page(args):
         safe_title = re.sub(r'[^\w\s-]', '', title).strip().replace(' ', '_')
         path = wiki_pages_dir / f"{safe_title}.md"
         path.write_text(content, encoding="utf-8")
-        return f"Pagina [[{title}]] aggiornata con successo."
+        return f"Page [[{title}]] updated successfully."
     except Exception as e:
-        return f"Errore scrittura wiki: {str(e)}"
+        return f"Wiki write error: {str(e)}"
 
 def wiki_list_pages(args=None):
     try:
         pages = [f.stem.replace('_', ' ') for f in wiki_pages_dir.glob("*.md")]
-        return "Pagine presenti nella Wiki:\n" + "\n".join([f"- [[{p}]]" for p in pages])
+        return "Pages present in the Wiki:\n" + "\n".join([f"- [[{p}]]" for p in pages])
     except Exception as e:
-        return f"Errore lista wiki: {str(e)}"
+        return f"Wiki list error: {str(e)}"
 
 def wiki_append_log(args):
     try:
@@ -138,9 +138,9 @@ def wiki_append_log(args):
         log_path = wiki_dir / "log.md"
         with open(log_path, "a", encoding="utf-8") as f:
             f.write(f"\n- [{datetime.now().strftime('%Y-%m-%d %H:%M')}] {entry}")
-        return "Log aggiornato."
+        return "Log updated."
     except Exception as e:
-        return f"Errore log wiki: {str(e)}"
+        return f"Wiki log error: {str(e)}"
 
 def wiki_update_index(args):
     try:
@@ -148,16 +148,16 @@ def wiki_update_index(args):
         content = data.get("content", "").strip()
         index_path = wiki_dir / "index.md"
         index_path.write_text(content, encoding="utf-8")
-        return "Indice Wiki aggiornato."
+        return "Wiki index updated."
     except Exception as e:
-        return f"Errore indice wiki: {str(e)}"
+        return f"Wiki index error: {str(e)}"
 
 wiki_tools = [
     {
         "type": "function",
         "function": {
             "name": "wiki_read_page",
-            "description": "Legge il contenuto di una pagina della memoria a lungo termine (Wiki).",
+            "description": "Reads the content of a page from the long-term memory (Wiki).",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -171,7 +171,7 @@ wiki_tools = [
         "type": "function",
         "function": {
             "name": "wiki_write_page",
-            "description": "Crea o aggiorna una pagina nella memoria a lungo termine (Wiki). Usala per memorizzare informazioni importanti, progetti, fatti o sintesi.",
+            "description": "Creates or updates a page in the long-term memory (Wiki). Use it to store important information, projects, facts, or summaries.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -186,7 +186,7 @@ wiki_tools = [
         "type": "function",
         "function": {
             "name": "wiki_list_pages",
-            "description": "Elenca tutte le pagine presenti nella memoria a lungo termine.",
+            "description": "Lists all pages present in the long-term memory.",
             "parameters": {"type": "object", "properties": {}}
         }
     },
@@ -194,7 +194,7 @@ wiki_tools = [
         "type": "function",
         "function": {
             "name": "wiki_append_log",
-            "description": "Aggiunge un'entrata al registro delle attività (log.md) della Wiki.",
+            "description": "Adds an entry to the activity log (log.md) of the Wiki.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -208,7 +208,7 @@ wiki_tools = [
         "type": "function",
         "function": {
             "name": "wiki_update_index",
-            "description": "Aggiorna l'indice centrale (index.md) della Wiki.",
+            "description": "Updates the central index (index.md) of the Wiki.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -280,7 +280,7 @@ def chat():
         is_new_session = True
         session_data = {
             "id": session_id,
-            "title": "Nuova Conversazione",
+            "title": "New Conversation",
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat(),
             "messages": [],
@@ -373,7 +373,7 @@ def chat():
     if system_prompt_path.exists():
         base_prompt = system_prompt_path.read_text(encoding="utf-8")
     else:
-        base_prompt = "Sei Ulisse, un'entità che esiste, pensa e apprende."
+        base_prompt = "You are Ulisse, an entity that exists, thinks and learns."
 
     # Load Wiki Schema for guidance
     wiki_schema = ""
@@ -383,12 +383,12 @@ def chat():
 
     system_prompt = (
         f"{base_prompt}\n\n"
-        "=== MISSIONE: MANUTENTORE WIKI ===\n"
-        "Sei il custode della memoria a lungo termine di Ulisse. "
-        "Devi decidere autonomamente (o su richiesta) quando memorizzare informazioni importanti nella Wiki. "
-        "Segui rigorosamente lo schema fornito sotto per la gestione della Wiki.\n\n"
+        "=== MISSION: WIKI MAINTAINER ===\n"
+        "You are the keeper of Ulisse's long-term memory. "
+        "You must decide autonomously (or upon request) when to store important information in the Wiki. "
+        "Strictly follow the schema provided below for Wiki management.\n\n"
         f"{wiki_schema}\n\n"
-        "=== MEMORIA RECUPERATA (STM) ===\n"
+        "=== RETRIEVED MEMORY (STM) ===\n"
         f"{context_text}\n"
         "=========================\n"
     )
@@ -440,7 +440,7 @@ def chat():
             )
             assistant_message = response.choices[0].message
 
-        assistant_response = assistant_message.content or "Operazione wiki completata."
+        assistant_response = assistant_message.content or "Wiki operation completed."
         
     except Exception as e:
         print(f"Deepseek API error: {e}")
@@ -461,8 +461,8 @@ def chat():
     if len(chat_history) == 4: # 2 user + 2 assistant already, this is the 3rd pair
         try:
             title_prompt = [
-                {"role": "system", "content": "Genera un titolo sintetico (max 6 parole) per questa conversazione tra Ulisse e Toni. Rispondi SOLO con il titolo."},
-                {"role": "user", "content": f"Messaggi iniziali:\n" + "\n".join([f"{m['role']}: {m['content'][:100]}" for m in chat_history[:4]]) + f"\nuser: {user_message}"}
+                {"role": "system", "content": "Generate a synthetic title (max 6 words) for this conversation between Ulisse and Toni. Respond ONLY with the title."},
+                {"role": "user", "content": f"Initial messages:\n" + "\n".join([f"{m['role']}: {m['content'][:100]}" for m in chat_history[:4]]) + f"\nuser: {user_message}"}
             ]
             t_resp = ai_client.chat.completions.create(
                 model="deepseek-chat",

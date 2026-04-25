@@ -161,21 +161,21 @@ for concept, convs in active_concepts.items():
         f.write(f"mentions: {mentions}\n")
         f.write(f"---\n")
         f.write(f"# {concept}\n")
-        f.write(f"## Appare in:\n")
+        f.write(f"## Appears in:\n")
         for conv in sorted(convs):
             f.write(f"- [[{conv}]]\n")
 
 map_path = os.path.join(vault_path, "ULISSE_MAP.md")
 with open(map_path, 'w', encoding='utf-8') as f:
     f.write("# ULISSE KNOWLEDGE MAP\n\n")
-    f.write("## Statistiche\n")
-    f.write(f"- **Conversazioni:** {total_conversations}\n")
-    f.write(f"- **Concetti:** {len(active_concepts)}\n")
-    f.write(f"- **Connessioni:** {total_connections}\n\n")
+    f.write("## Statistics\n")
+    f.write(f"- **Conversations:** {total_conversations}\n")
+    f.write(f"- **Concepts:** {len(active_concepts)}\n")
+    f.write(f"- **Connections:** {total_connections}\n\n")
     
-    f.write("## Concetti (per frequenza)\n")
+    f.write("## Concepts (by frequency)\n")
     sorted_concepts = sorted(active_concepts.items(), key=lambda x: len(x[1]), reverse=True)
     for concept, convs in sorted_concepts:
-        f.write(f"- [[{concept}]] ({len(convs)} menzioni)\n")
+        f.write(f"- [[{concept}]] ({len(convs)} mentions)\n")
 
 print("Obsidian graph built successfully.")
