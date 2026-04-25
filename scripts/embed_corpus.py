@@ -34,7 +34,7 @@ def main():
     
     if not corpus_clean_path.exists():
         print(f"Error: {corpus_clean_path} not found.")
-        print("Please run parse_chatgpt.py first to generate the corpus chunks.")
+        print("Please provide a valid corpus_clean.json file.")
         return
         
     print("Loading corpus_clean.json...")
