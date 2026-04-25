@@ -73,14 +73,7 @@ class CorpusHandler(FileSystemEventHandler):
         filename = path.name
         now = time.time()
         
-        if filename == "conversations.json":
-            if now - self.last_run_chatgpt > self.debounce:
-                self.last_run_chatgpt = now
-                logging.info(f"Detected changes in {filename}")
-                self.run_command(["scripts/parse_chatgpt.py"], "Parse ChatGPT")
-                self.run_command(["scripts/embed_corpus.py"], "Embed Corpus")
-                
-        elif filename == "new_conversations.jsonl":
+        if filename == "new_conversations.jsonl":
             if now - self.last_run_ulisse > self.debounce:
                 self.last_run_ulisse = now
                 logging.info(f"Detected changes in {filename}")
