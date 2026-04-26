@@ -65,6 +65,10 @@ api_key = os.getenv("DEEPSEEK_API_KEY", "")
 base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 ai_client = OpenAI(api_key=api_key, base_url=base_url)
 
+# Ulisse Memo cloud endpoint (can be overridden for dev via ULISSE_MEMO_URL)
+ULISSE_MEMO_URL = os.getenv("ULISSE_MEMO_URL", "https://ulisse-memo.onrender.com")
+ULISSE_MEMO_BEARER = os.getenv("ULISSE_MEMO_BEARER", "")
+
 chroma_client = None
 collection = None
 chroma_status = False
@@ -369,7 +373,7 @@ def chat():
     
 
     # Load system prompt from file or use default
-    system_prompt_path = corpus_dir / "system_prompt.txt"
+    system_prompt_path = corpus_dir / "system_prompt.md"
     if system_prompt_path.exists():
         base_prompt = system_prompt_path.read_text(encoding="utf-8")
     else:
@@ -404,10 +408,40 @@ def chat():
             
     messages.append({"role": "user", "content": user_message})
     
+    # === Provider routing ===
+    provider    = data.get("provider", "local")       # local | apikey | memo
+    req_api_key = data.get("api_key", "")              # only for apikey
+    req_base_url= data.get("base_url", "")             # only for apikey
+    req_model   = data.get("model", "")                # only for apikey
+
+    if provider == "memo":
+        # Route to Ulisse Memo cloud endpoint via OpenAI compatible client
+        chat_client = OpenAI(
+            base_url=f"{ULISSE_MEMO_URL}/v1",
+            api_key=ULISSE_MEMO_BEARER or "memo-key"
+        )
+        chat_model = "deepseek-chat" # The proxy enforces the actual model
+
+    elif provider == "apikey" and req_api_key:
+        # User-supplied API key and base URL
+        try:
+            user_client = OpenAI(
+                api_key=req_api_key,
+                base_url=req_base_url or "https://api.openai.com/v1"
+            )
+            chat_client = user_client
+            chat_model  = req_model or "gpt-4o"
+        except Exception as e:
+            return jsonify({"error": f"Invalid API key config: {str(e)}"}), 400
+    else:
+        # Default: use .env / local model
+        chat_client = ai_client
+        chat_model  = "deepseek-chat"
+
+    # === LLM call (local / apikey paths) ===
     try:
-        # Initial call
-        response = ai_client.chat.completions.create(
-            model="deepseek-chat",
+        response = chat_client.chat.completions.create(
+            model=chat_model,
             messages=messages,
             temperature=0.7,
             max_tokens=4000,
@@ -433,8 +467,8 @@ def chat():
                     })
             
             # Call again with tool results
-            response = ai_client.chat.completions.create(
-                model="deepseek-chat",
+            response = chat_client.chat.completions.create(
+                model=chat_model,
                 messages=messages,
                 tools=extra_tools if extra_tools else None
             )

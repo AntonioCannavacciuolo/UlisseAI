@@ -424,6 +424,243 @@
             box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
         }
 
+        /* --- PROVIDER SELECTOR --- */
+        .provider-wrapper {
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+        }
+
+        #provider-btn {
+            padding: 0;
+            width: 44px;
+            height: 50px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            background: rgba(10, 10, 26, 0.8);
+            color: var(--cyan);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        #provider-btn:hover {
+            background: rgba(0, 212, 255, 0.1);
+            box-shadow: var(--glow);
+            border-color: var(--cyan);
+        }
+
+        #provider-btn.active-memo {
+            border-color: #a855f7;
+            color: #a855f7;
+            box-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
+        }
+
+        #provider-btn.active-local {
+            border-color: #22c55e;
+            color: #22c55e;
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
+        }
+
+        #provider-btn.active-apikey {
+            border-color: #f59e0b;
+            color: #f59e0b;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+        }
+
+        #provider-dropdown {
+            position: absolute;
+            bottom: calc(100% + 10px);
+            right: 0;
+            width: 240px;
+            background: rgba(8, 8, 24, 0.97);
+            border: 1px solid rgba(0, 212, 255, 0.25);
+            border-radius: 10px;
+            box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 212, 255, 0.08);
+            backdrop-filter: blur(20px);
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            animation: dropdownFadeIn 0.2s ease;
+        }
+
+        #provider-dropdown.open {
+            display: flex;
+        }
+
+        @keyframes dropdownFadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .provider-dropdown-title {
+            padding: 10px 14px 6px;
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(0, 212, 255, 0.5);
+            font-family: 'Courier New', monospace;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .provider-option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.8);
+            font-family: inherit;
+            text-transform: none;
+            letter-spacing: 0;
+            border-radius: 0;
+            background: transparent;
+            border-left: none;
+            border-right: none;
+            border-top: none;
+            width: 100%;
+            text-align: left;
+        }
+
+        .provider-option:last-child {
+            border-bottom: none;
+        }
+
+        .provider-option:hover {
+            background: rgba(0, 212, 255, 0.07);
+            box-shadow: none;
+        }
+
+        .provider-option.selected {
+            background: rgba(0, 212, 255, 0.06);
+        }
+
+        .provider-option .prov-icon {
+            font-size: 18px;
+            width: 26px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .provider-option .prov-label {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .provider-option .prov-name {
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .provider-option .prov-desc {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .provider-option[data-provider="local"] .prov-name { color: #22c55e; }
+        .provider-option[data-provider="apikey"] .prov-name { color: #f59e0b; }
+        .provider-option[data-provider="memo"] .prov-name { color: #a855f7; }
+
+        .provider-badge {
+            position: absolute;
+            top: 3px;
+            right: 3px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22c55e;
+            border: 1px solid #0a0a1a;
+        }
+
+        .provider-badge.memo { background: #a855f7; }
+        .provider-badge.apikey { background: #f59e0b; }
+
+        /* --- API KEY MODAL --- */
+        #apikey-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 20000;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(8px);
+            align-items: center;
+            justify-content: center;
+        }
+
+        #apikey-modal.open {
+            display: flex;
+        }
+
+        .apikey-modal-box {
+            background: rgba(8, 8, 24, 0.98);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            border-radius: 12px;
+            padding: 30px;
+            width: 420px;
+            max-width: 90vw;
+            box-shadow: 0 0 40px rgba(245, 158, 11, 0.15);
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .apikey-modal-box h3 {
+            margin: 0;
+            color: #f59e0b;
+            font-size: 16px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-family: 'Courier New', monospace;
+        }
+
+        .apikey-modal-box .form-group label {
+            color: rgba(255,255,255,0.6);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .apikey-modal-box input {
+            width: 100%;
+            background: rgba(10, 10, 26, 0.9);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: #fff;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .apikey-modal-box input:focus {
+            border-color: #f59e0b;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+        }
+
+        .apikey-save-btn {
+            background: #f59e0b !important;
+            color: #000 !important;
+            border-color: #f59e0b !important;
+            padding: 12px 24px;
+            font-weight: 700;
+        }
+
+        .apikey-save-btn:hover {
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.4) !important;
+        }
+
         .message {
             transition: transform 0.2s;
         }
@@ -1540,6 +1777,36 @@
                         <button id="attach-btn" title="Attach file (Img, PDF, TXT, MD, JSON)">📎</button>
                         <textarea id="message-input" placeholder="Send a message to the neural network..."
                             autocomplete="off" rows="1"></textarea>
+                        <div class="provider-wrapper">
+                            <button id="provider-btn" title="Select AI provider">
+                                🌐
+                                <span class="provider-badge" id="provider-badge"></span>
+                            </button>
+                            <div id="provider-dropdown">
+                                <div class="provider-dropdown-title">AI Provider</div>
+                                <button class="provider-option" data-provider="local">
+                                    <span class="prov-icon">💻</span>
+                                    <span class="prov-label">
+                                        <span class="prov-name">LLM Locale</span>
+                                        <span class="prov-desc">Ollama / LM Studio on your machine</span>
+                                    </span>
+                                </button>
+                                <button class="provider-option" data-provider="apikey">
+                                    <span class="prov-icon">🔑</span>
+                                    <span class="prov-label">
+                                        <span class="prov-name">API Key</span>
+                                        <span class="prov-desc">OpenAI, DeepSeek, Anthropic…</span>
+                                    </span>
+                                </button>
+                                <button class="provider-option" data-provider="memo">
+                                    <span class="prov-icon">🔮</span>
+                                    <span class="prov-label">
+                                        <span class="prov-name">Ulisse Memo v1</span>
+                                        <span class="prov-desc">Cloud model — ulisse-memo.onrender.com</span>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
                         <button id="send-btn" title="Send">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1553,6 +1820,29 @@
                 </div>
                 <input type="file" id="file-input" style="display:none"
                     accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.json">
+            </div>
+        </div>
+    </div>
+
+    <!-- API Key Modal -->
+    <div id="apikey-modal">
+        <div class="apikey-modal-box">
+            <h3>🔑 API Key Configuration</h3>
+            <div class="form-group">
+                <label>Provider Base URL</label>
+                <input type="text" id="apikey-base-url" placeholder="https://api.deepseek.com" />
+            </div>
+            <div class="form-group">
+                <label>API Key</label>
+                <input type="password" id="apikey-value" placeholder="sk-..." />
+            </div>
+            <div class="form-group">
+                <label>Model name</label>
+                <input type="text" id="apikey-model" placeholder="deepseek-chat" />
+            </div>
+            <div class="modal-actions">
+                <button onclick="closeApikeyModal()" style="border-color:rgba(255,255,255,0.2);color:#888;">Cancel</button>
+                <button class="apikey-save-btn" onclick="saveApikeyConfig()">Save & Activate</button>
             </div>
         </div>
     </div>
@@ -2305,6 +2595,98 @@
             }
         }
 
+        // ================================================================
+        //  PROVIDER SELECTOR
+        // ================================================================
+        const PROVIDERS = {
+            local:  { label: 'LLM Locale',       badgeClass: 'local',  btnClass: 'active-local'  },
+            apikey: { label: 'API Key',           badgeClass: 'apikey', btnClass: 'active-apikey' },
+            memo:   { label: 'Ulisse Memo v1',    badgeClass: 'memo',   btnClass: 'active-memo'   }
+        };
+
+        let currentProvider = localStorage.getItem('ulisse_provider') || 'local';
+        let apikeyConfig = JSON.parse(localStorage.getItem('ulisse_apikey_cfg') || 'null') || { baseUrl: '', apiKey: '', model: '' };
+
+        const providerBtn      = document.getElementById('provider-btn');
+        const providerDropdown = document.getElementById('provider-dropdown');
+        const providerBadge    = document.getElementById('provider-badge');
+        const apikeyModal      = document.getElementById('apikey-modal');
+
+        function applyProviderUI(provider) {
+            // Remove old classes
+            Object.values(PROVIDERS).forEach(p => providerBtn.classList.remove(p.btnClass));
+            providerBtn.classList.add(PROVIDERS[provider].btnClass);
+            // Badge color
+            providerBadge.className = 'provider-badge';
+            if (provider === 'memo')   providerBadge.classList.add('memo');
+            if (provider === 'apikey') providerBadge.classList.add('apikey');
+            // Mark selected option
+            document.querySelectorAll('.provider-option').forEach(opt => {
+                opt.classList.toggle('selected', opt.dataset.provider === provider);
+            });
+        }
+
+        function selectProvider(provider) {
+            currentProvider = provider;
+            localStorage.setItem('ulisse_provider', provider);
+            applyProviderUI(provider);
+            providerDropdown.classList.remove('open');
+        }
+
+        providerBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            providerDropdown.classList.toggle('open');
+        });
+
+        document.querySelectorAll('.provider-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                const prov = opt.dataset.provider;
+                if (prov === 'apikey') {
+                    providerDropdown.classList.remove('open');
+                    openApikeyModal();
+                } else {
+                    selectProvider(prov);
+                }
+            });
+        });
+
+        document.addEventListener('click', e => {
+            if (!providerDropdown.contains(e.target) && e.target !== providerBtn) {
+                providerDropdown.classList.remove('open');
+            }
+        });
+
+        function openApikeyModal() {
+            document.getElementById('apikey-base-url').value = apikeyConfig.baseUrl || '';
+            document.getElementById('apikey-value').value    = apikeyConfig.apiKey  || '';
+            document.getElementById('apikey-model').value    = apikeyConfig.model   || '';
+            apikeyModal.classList.add('open');
+        }
+
+        function closeApikeyModal() {
+            apikeyModal.classList.remove('open');
+        }
+
+        function saveApikeyConfig() {
+            apikeyConfig = {
+                baseUrl: document.getElementById('apikey-base-url').value.trim(),
+                apiKey:  document.getElementById('apikey-value').value.trim(),
+                model:   document.getElementById('apikey-model').value.trim()
+            };
+            localStorage.setItem('ulisse_apikey_cfg', JSON.stringify(apikeyConfig));
+            selectProvider('apikey');
+            closeApikeyModal();
+        }
+
+        // Dismiss modal on backdrop click
+        apikeyModal.addEventListener('click', e => { if (e.target === apikeyModal) closeApikeyModal(); });
+
+        // Init UI on load
+        applyProviderUI(currentProvider);
+
+        // ================================================================
+        //  CHAT SEND
+        // ================================================================
         async function sendMessage() {
             const text = messageInput.value.trim();
             if (!text && !currentFile) return;
@@ -2323,20 +2705,27 @@
 
             abortController = new AbortController();
 
+            // Build provider payload
+            const providerPayload = { provider: currentProvider };
+            if (currentProvider === 'apikey') {
+                providerPayload.api_key  = apikeyConfig.apiKey;
+                providerPayload.base_url = apikeyConfig.baseUrl;
+                providerPayload.model    = apikeyConfig.model;
+            }
+
             try {
                 const payload = {
                     message: text,
                     history,
-                    file: fileToSend // NOTE: Backend will handle this object when updated
+                    file: fileToSend,
+                    session_id: activeSessionId || null,
+                    ...providerPayload
                 };
 
                 const resp = await fetch('/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        ...payload,
-                        session_id: activeSessionId || null
-                    }),
+                    body: JSON.stringify(payload),
                     signal: abortController.signal
                 });
 
@@ -2356,12 +2745,10 @@
                     }
 
                     if (isNewSession) {
-                        fetchGraph(); // Full refresh for new nodes/edges
+                        fetchGraph();
                     } else if (activeSessionId) {
-                        // Just pulse and update existing node
                         Graph.activateNode(activeSessionId, 4000);
                         Graph.updateNodeWeight(activeSessionId);
-                        // Optional: small probability to refresh edges occasionally
                         if (Math.random() > 0.8) fetchGraph();
                     }
 

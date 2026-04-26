@@ -176,8 +176,11 @@
       "bases:Crea nuova Base": false
     }
   },
-  "active": "e1aebde26a73c230",
+  "active": "98356acfb89f5ccf",
   "lastOpenFiles": [
+    "Projects and Ideas.md",
+    "Toni Dorean.md",
+    "corpus/wiki/pages/Signora_Celeste.md",
     "webapp/frontend/index.html",
     "vectordb/chroma/chroma.sqlite3-journal",
     "vectordb/chroma/chroma.sqlite3",
@@ -188,7 +191,6 @@
     "requirements.txt",
     "README.md",
     "scripts",
-    "webapp/frontend",
-    "webapp/backend"
+    "webapp/frontend"
   ]
 }

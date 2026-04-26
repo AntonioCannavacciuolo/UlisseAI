@@ -12,7 +12,7 @@ dist/
 corpus/files/
 corpus/sessions/
 corpus/new_conversations.jsonl
-corpus/system_prompt.txt
+corpus/system_prompt.md
 corpus/*.json
 corpus/*.jsonl
 corpus/*.md
