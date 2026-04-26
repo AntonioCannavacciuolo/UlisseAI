@@ -123,18 +123,6 @@ https://ulisse-memo.onrender.com
 ```
 Per visualizzare e testare graficamente l'endpoint POST `/v1/chat` senza bisogno di scrivere codice o usare Postman, vai su: [https://ulisse-memo.onrender.com/docs](https://ulisse-memo.onrender.com/docs)
 
-To override (e.g. during development, pointing at a local Ulisse Memo backend):
-
-```env
-ULISSE_MEMO_URL=http://192.x.x.x:10000
-```
-
-If your Ulisse Memo backend requires authentication:
-
-```env
-ULISSE_MEMO_BEARER=your_token_here
-```
-
 ### Option C — Fully custom provider in code
 
 In `webapp/backend/app.py` locate the provider routing block (~line 408):
