@@ -126,7 +126,7 @@ Per visualizzare e testare graficamente l'endpoint POST `/v1/chat` senza bisogno
 To override (e.g. during development, pointing at a local Ulisse Memo backend):
 
 ```env
-ULISSE_MEMO_URL=http://192.168.1.100:10000
+ULISSE_MEMO_URL=http://192.x.x.x:10000
 ```
 
 If your Ulisse Memo backend requires authentication:
