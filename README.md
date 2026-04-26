@@ -9,9 +9,9 @@
 Ulisse is a system that allows a language model to **remember what you told it**, even across different sessions. It's not only a chatbot. It's an architecture that turns a generic LLM into an entity with continuous memory, capable of updating its own knowledge as it talks to you.
 
 It works with:
-- Local models (Ollama, LM Studio)
-- Remote APIs (OpenAI, Deepseek, Claude, any provider)
-- *(Future)* a fine-tuned model exclusive to this architecture
+- **Local models** (Ollama, LM Studio, any OpenAI-compatible server)
+- **Remote APIs** (OpenAI, DeepSeek, Claude, any provider with an API key)
+- **Ulisse Memo v1** — a fine-tuned cloud model specifically built for this architecture
 
 ---
 
@@ -31,7 +31,7 @@ The user doesn't need to configure any of this. It works out of the box.
 
 - Python 3.11+
 - ChromaDB (vector database for STM)
-- Deepseek API (or any OpenAI-compatible provider)
+- DeepSeek API or any OpenAI-compatible provider
 - Semantic Wiki (Markdown-based LTM)
 - Obsidian-compatible knowledge graph
 - Flask + Vanilla JS Frontend
@@ -52,7 +52,7 @@ Chat Interaction ↔ AI Tool Calling ↔ Semantic Wiki (LTM)
 
 Requirements:
 - Python 3.11+
-- An LLM API key (Deepseek, OpenAI, or compatible)
+- An LLM API key **OR** Ollama/LM Studio running locally **OR** use Ulisse Memo v1 (no key needed)
 
 ```bash
 git clone https://github.com/AntonioCannavacciuolo/UlisseAI.git
@@ -60,7 +60,7 @@ cd UlisseAI
 pip install -r requirements.txt
 ```
 
-Copy `.env.example` to `.env` and fill in your API key:
+Copy `.env.example` to `.env` and fill in your settings:
 
 ```
 DEEPSEEK_API_KEY=your_key_here
@@ -80,6 +80,72 @@ Open your browser at `http://localhost:5000`.
 
 ---
 
+## Choosing the AI Model (UI)
+
+In the chat interface, next to the **Send** button you'll find a 🌐 **network button**.  
+Clicking it opens a dropdown with three options:
+
+| Option | Description |
+|--------|-------------|
+| 💻 **LLM Locale** | Connects to a model running locally on your machine (Ollama, LM Studio, etc.). Uses the `DEEPSEEK_BASE_URL` / `DEEPSEEK_API_KEY` from `.env`. |
+| 🔑 **API Key** | Lets you enter any provider's Base URL, API Key, and model name directly from the UI. Credentials are saved in your browser's `localStorage`. |
+| 🔮 **Ulisse Memo v1** | Connects to the Ulisse Memo cloud model at `https://ulisse-memo.onrender.com`. No API key required. |
+
+Your choice is **persisted in the browser** across reloads.
+
+---
+
+## Changing the Model Manually (Advanced)
+
+### Option A — Local / Default model
+
+Edit `.env`:
+
+```env
+DEEPSEEK_API_KEY=your_key_here
+DEEPSEEK_BASE_URL=https://api.deepseek.com   # or http://localhost:11434/v1 for Ollama
+```
+
+Then in `webapp/backend/app.py`, find the line:
+
+```python
+chat_model  = "deepseek-chat"
+```
+
+and change it to the model name you want (e.g. `"gpt-4o"`, `"llama3"`, `"qwen2.5:7b"`).
+
+### Option B — Ulisse Memo v1 endpoint
+
+By default the app connects to:
+
+```
+https://ulisse-memo.onrender.com
+```
+Per visualizzare e testare graficamente l'endpoint POST `/v1/chat` senza bisogno di scrivere codice o usare Postman, vai su: [https://ulisse-memo.onrender.com/docs](https://ulisse-memo.onrender.com/docs)
+
+To override (e.g. during development, pointing at a local Ulisse Memo backend):
+
+```env
+ULISSE_MEMO_URL=http://192.168.1.100:10000
+```
+
+If your Ulisse Memo backend requires authentication:
+
+```env
+ULISSE_MEMO_BEARER=your_token_here
+```
+
+### Option C — Fully custom provider in code
+
+In `webapp/backend/app.py` locate the provider routing block (~line 408):
+
+```python
+# === Provider routing ===
+provider = data.get("provider", "local")
+```
+
+You can add new branches here to support additional providers at the server level.
+
 ---
 
 ## Philosophy
@@ -94,7 +160,7 @@ Ulisse exists for three reasons:
 
 ## Project status
 
-Currently in active development. It works, but is still in testing phase. The interface is minimal. Contributions, bug reports, and ideas are welcome.
+Currently in active development. It works, but is still in testing phase. Contributions, bug reports, and ideas are welcome.
 
 ---
 
