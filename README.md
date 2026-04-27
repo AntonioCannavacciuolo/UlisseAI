@@ -121,7 +121,6 @@ By default the app connects to:
 ```
 https://ulisse-memo.onrender.com
 ```
-Per visualizzare e testare graficamente l'endpoint POST `/v1/chat` senza bisogno di scrivere codice o usare Postman, vai su: [https://ulisse-memo.onrender.com/docs](https://ulisse-memo.onrender.com/docs)
 
 ### Option C — Fully custom provider in code
 
