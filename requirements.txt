@@ -8,3 +8,7 @@ openai
 watchdog
 nltk
 requests
+PyMuPDF
+python-docx
+python-pptx
+openpyxl

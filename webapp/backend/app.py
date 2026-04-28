@@ -1,4 +1,5 @@
 import os
+import io
 from collections import Counter
 from dotenv import load_dotenv
 
@@ -19,6 +20,32 @@ import chromadb
 from chromadb.utils import embedding_functions
 from openai import OpenAI
 import uuid
+from werkzeug.utils import secure_filename
+
+# --- Optional file-parsing imports ---
+try:
+    import fitz  # PyMuPDF
+    HAS_PYMUPDF = True
+except ImportError:
+    HAS_PYMUPDF = False
+
+try:
+    from docx import Document as DocxDocument
+    HAS_DOCX = True
+except ImportError:
+    HAS_DOCX = False
+
+try:
+    from pptx import Presentation
+    HAS_PPTX = True
+except ImportError:
+    HAS_PPTX = False
+
+try:
+    import openpyxl
+    HAS_XLSX = True
+except ImportError:
+    HAS_XLSX = False
 
 app = Flask(__name__)
 CORS(app)
@@ -234,6 +261,110 @@ extra_tool_handlers.update({
 })
 
 
+# ---------------------------------------------------------------------------
+# File text-extraction helpers
+# ---------------------------------------------------------------------------
+
+MAX_FILE_SIZE_MB = 15
+MAX_EXTRACTED_CHARS = 80_000  # ~20k tokens – safe upper bound for most models
+
+ALLOWED_EXTENSIONS = {
+    ".pdf", ".docx", ".pptx", ".xlsx",
+    ".txt", ".md", ".csv", ".log", ".json", ".xml", ".yaml", ".yml"
+}
+
+
+def _extract_text_from_file(file_storage) -> str:
+    """Extract plain text from a werkzeug FileStorage object.
+    Returns the extracted text string (possibly truncated).
+    Raises ValueError on unsupported/too-large files.
+    """
+    filename = secure_filename(file_storage.filename or "upload")
+    ext = Path(filename).suffix.lower()
+
+    if ext not in ALLOWED_EXTENSIONS:
+        raise ValueError(f"Formato file non supportato: '{ext}'. "
+                         f"Formati supportati: {', '.join(sorted(ALLOWED_EXTENSIONS))}")
+
+    raw = file_storage.read()
+    if len(raw) > MAX_FILE_SIZE_MB * 1024 * 1024:
+        raise ValueError(f"File troppo grande (max {MAX_FILE_SIZE_MB} MB).")
+
+    text = ""
+
+    if ext == ".pdf":
+        if not HAS_PYMUPDF:
+            raise ValueError("PyMuPDF non installato. Esegui: pip install PyMuPDF")
+        with fitz.open(stream=raw, filetype="pdf") as doc:
+            pages = [page.get_text() for page in doc]
+        text = "\n\n".join(pages)
+
+    elif ext == ".docx":
+        if not HAS_DOCX:
+            raise ValueError("python-docx non installato. Esegui: pip install python-docx")
+        doc = DocxDocument(io.BytesIO(raw))
+        text = "\n".join(para.text for para in doc.paragraphs)
+
+    elif ext == ".pptx":
+        if not HAS_PPTX:
+            raise ValueError("python-pptx non installato. Esegui: pip install python-pptx")
+        prs = Presentation(io.BytesIO(raw))
+        parts = []
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                if hasattr(shape, "text") and shape.text:
+                    parts.append(shape.text)
+        text = "\n".join(parts)
+
+    elif ext == ".xlsx":
+        if not HAS_XLSX:
+            raise ValueError("openpyxl non installato. Esegui: pip install openpyxl")
+        wb = openpyxl.load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
+        rows = []
+        for sheet in wb.worksheets:
+            rows.append(f"=== Sheet: {sheet.title} ===")
+            for row in sheet.iter_rows(values_only=True):
+                row_str = "\t".join(str(c) if c is not None else "" for c in row)
+                rows.append(row_str)
+        text = "\n".join(rows)
+
+    else:
+        # Plain text formats
+        text = raw.decode("utf-8", errors="replace")
+
+    # Truncate if needed
+    if len(text) > MAX_EXTRACTED_CHARS:
+        text = text[:MAX_EXTRACTED_CHARS] + "\n\n[...testo troncato per limiti di dimensione...]"
+
+    return text.strip()
+
+
+@app.route("/extract_file", methods=["POST"])
+def extract_file():
+    """Upload a file and return its extracted text as JSON."""
+    if "file" not in request.files:
+        return jsonify({"error": "Nessun file ricevuto. Usa il campo 'file'."}), 400
+
+    f = request.files["file"]
+    if not f or f.filename == "":
+        return jsonify({"error": "File non valido."}), 400
+
+    try:
+        text = _extract_text_from_file(f)
+        return jsonify({
+            "filename": secure_filename(f.filename),
+            "text": text,
+            "char_count": len(text)
+        })
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 422
+    except Exception as e:
+        print(f"File extraction error: {e}")
+        return jsonify({"error": f"Errore durante l'estrazione: {str(e)}"}), 500
+
+
+# ---------------------------------------------------------------------------
+
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({
@@ -271,9 +402,21 @@ def get_session_path(session_id):
 def chat():
     data = request.json
     user_message = data.get("message", "")
+    file_text    = data.get("file_text", "")    # optional extracted file content
+    file_name    = data.get("file_name", "")    # optional original filename
     history = data.get("history", []) # Client-side history (optional now, but kept for compatibility)
     session_id = data.get("session_id")
-    
+
+    # Inject extracted file content into the user message
+    if file_text:
+        label = f"📄 {file_name}" if file_name else "📄 Allegato"
+        user_message = (
+            f"{user_message}\n\n"
+            f"--- {label} ---\n"
+            f"{file_text}\n"
+            f"--- fine allegato ---"
+        ).strip()
+
     if not user_message:
         return jsonify({"error": "Message is required"}), 400
         
@@ -439,136 +582,162 @@ def chat():
         chat_model  = "deepseek-chat"
 
     # === LLM call (local / apikey paths) ===
-    try:
-        response = chat_client.chat.completions.create(
-            model=chat_model,
-            messages=messages,
-            temperature=0.7,
-            max_tokens=4000,
-            tools=extra_tools if extra_tools else None
-        )
-        assistant_message = response.choices[0].message
+    from flask import Response
+    import copy
+    
+    def generate():
+        nonlocal session_data, messages, sources
         
-        # Recursive tool call handling
-        while assistant_message.tool_calls:
-            # Add assistant's tool call message to history
-            messages.append(assistant_message)
-            
-            for tool_call in assistant_message.tool_calls:
-                handler = extra_tool_handlers.get(tool_call.function.name)
-                if handler:
-                    result = handler(tool_call.function.arguments)
-                    # Add tool result message to history
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "name": tool_call.function.name,
-                        "content": result
-                    })
-            
-            # Call again with tool results
+        # Invia l'inizio della sessione
+        yield f"data: {json.dumps({'event': 'session', 'session_id': session_id, 'session_title': session_data.get('title', 'Nuova Chat'), 'sources': sources})}\n\n"
+        
+        full_assistant_response = ""
+        
+        try:
+            # Pass 1: Tool Routing
+            yield f"data: {json.dumps({'event': 'think', 'message': 'Analisi in corso...'})}\n\n"
             response = chat_client.chat.completions.create(
                 model=chat_model,
                 messages=messages,
+                temperature=0.7,
+                max_tokens=4000,
                 tools=extra_tools if extra_tools else None
             )
             assistant_message = response.choices[0].message
-
-        assistant_response = assistant_message.content or "Wiki operation completed."
-        
-    except Exception as e:
-        print(f"Deepseek API error: {e}")
-        return jsonify({"error": f"Failed to generate response: {str(e)}"}), 500
-
-        
-    timestamp = datetime.now().isoformat()
-    
-    # Auto-generate title from first message
-    if len(chat_history) == 0:
-        words = user_message.split()
-        if len(words) >= 3:
-            session_data["title"] = " ".join(w.capitalize() for w in words[:6])
-        else:
-            session_data["title"] = f"Chat {timestamp[:16]}"
-    
-    # AI Title refinement after 3 messages
-    if len(chat_history) == 4: # 2 user + 2 assistant already, this is the 3rd pair
-        try:
-            title_prompt = [
-                {"role": "system", "content": "Generate a synthetic title (max 6 words) for this conversation between Ulisse and Toni. Respond ONLY with the title."},
-                {"role": "user", "content": f"Initial messages:\n" + "\n".join([f"{m['role']}: {m['content'][:100]}" for m in chat_history[:4]]) + f"\nuser: {user_message}"}
-            ]
-            t_resp = ai_client.chat.completions.create(
-                model="deepseek-chat",
-                messages=title_prompt,
-                max_tokens=20
+            
+            while assistant_message.tool_calls:
+                messages.append(assistant_message)
+                for tool_call in assistant_message.tool_calls:
+                    yield f"data: {json.dumps({'event': 'tool', 'message': f'Memoria: {tool_call.function.name}'})}\n\n"
+                    handler = extra_tool_handlers.get(tool_call.function.name)
+                    if handler:
+                        result = handler(tool_call.function.arguments)
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "name": tool_call.function.name,
+                            "content": result
+                        })
+                
+                yield f"data: {json.dumps({'event': 'think', 'message': 'Elaborazione...'})}\n\n"
+                response = chat_client.chat.completions.create(
+                    model=chat_model,
+                    messages=messages,
+                    tools=extra_tools if extra_tools else None
+                )
+                assistant_message = response.choices[0].message
+            
+            # Pass 2: Generazione del testo finale (Stream)
+            yield f"data: {json.dumps({'event': 'think', 'message': 'Rispondo...'})}\n\n"
+            
+            stream_response = chat_client.chat.completions.create(
+                model=chat_model,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=4000,
+                stream=True
             )
-            new_title = t_resp.choices[0].message.content.strip().strip('"')
-            if new_title:
-                session_data["title"] = new_title
+            
+            for chunk in stream_response:
+                if not chunk.choices:
+                    continue
+                delta = chunk.choices[0].delta
+                if delta.content:
+                    full_assistant_response += delta.content
+                    yield f"data: {json.dumps({'event': 'message', 'text': delta.content})}\n\n"
+                    
         except Exception as e:
-            print(f"Title generation error: {e}")
+            print(f"Deepseek API error: {e}")
+            yield f"data: {json.dumps({'event': 'error', 'message': f'Failed to generate response: {str(e)}'})}\n\n"
+            if not full_assistant_response:
+                full_assistant_response = "Errore di generazione."
 
-    # Append to session
-    session_data["messages"].append({
-        "role": "user",
-        "content": user_message,
-        "timestamp": timestamp
-    })
-    session_data["messages"].append({
-        "role": "assistant",
-        "content": assistant_response,
-        "timestamp": timestamp,
-        "sources": sources
-    })
-    session_data["updated_at"] = timestamp
-    
-    # Save session
-    try:
-        with open(get_session_path(session_id), "w", encoding="utf-8") as f:
-            json.dump(session_data, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"Error saving session: {e}")
-
-    # Save to legacy jsonl for RAG
-    exchange = {
-        "session_id": session_id,
-        "title": session_data["title"],
-        "timestamp": timestamp,
-        "user_message": user_message,
-        "assistant_response": assistant_response,
-        "sources": sources
-    }
-    try:
-        with open(new_conversations_file, "a", encoding="utf-8") as f:
-            f.write(json.dumps(exchange, ensure_ascii=False) + "\n")
-            
-        # Real-time embedding into ChromaDB (Short-term memory)
-        if chroma_status and collection is not None:
-            document = f"User: {user_message}\nAssistant: {assistant_response}"
-            chunk_id = f"chunk_{session_id}_{len(session_data['messages']) // 2}"
-            collection.add(
-                documents=[document],
-                metadatas=[{
-                    "session_id": session_id,
-                    "title": session_data["title"],
-                    "date": timestamp,
-                    "type": "conversation"
-                }],
-                ids=[chunk_id]
-            )
-            print(f"Real-time STM update: Added chunk {chunk_id} to ChromaDB.")
-            
-    except Exception as e:
-        print(f"Error saving legacy exchange or updating STM: {e}")
-
+        # --- Post-processing e Salvataggio ---
+        timestamp = datetime.now().isoformat()
         
-    return jsonify({
-        "response": assistant_response,
-        "sources": sources,
-        "session_id": session_id,
-        "session_title": session_data["title"]
-    })
+        # Auto-generate title from first message
+        if len(chat_history) == 0:
+            words = user_message.split()
+            if len(words) >= 3:
+                session_data["title"] = " ".join(w.capitalize() for w in words[:6])
+            else:
+                session_data["title"] = f"Chat {timestamp[:16]}"
+        
+        # AI Title refinement after 3 messages
+        if len(chat_history) == 4: # 2 user + 2 assistant already, this is the 3rd pair
+            try:
+                title_prompt = [
+                    {"role": "system", "content": "Generate a synthetic title (max 6 words) for this conversation between Ulisse and Toni. Respond ONLY with the title."},
+                    {"role": "user", "content": f"Initial messages:\n" + "\n".join([f"{m['role']}: {m['content'][:100]}" for m in chat_history[:4]]) + f"\nuser: {user_message}"}
+                ]
+                t_resp = ai_client.chat.completions.create(
+                    model="deepseek-chat",
+                    messages=title_prompt,
+                    max_tokens=20
+                )
+                new_title = t_resp.choices[0].message.content.strip().strip('"')
+                if new_title:
+                    session_data["title"] = new_title
+            except Exception as e:
+                print(f"Title generation error: {e}")
+
+        # Append to session
+        session_data["messages"].append({
+            "role": "user",
+            "content": user_message,
+            "timestamp": timestamp
+        })
+        session_data["messages"].append({
+            "role": "assistant",
+            "content": full_assistant_response,
+            "timestamp": timestamp,
+            "sources": sources
+        })
+        session_data["updated_at"] = timestamp
+        
+        # Save session
+        try:
+            with open(get_session_path(session_id), "w", encoding="utf-8") as f:
+                json.dump(session_data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"Error saving session: {e}")
+
+        # Save to legacy jsonl for RAG
+        exchange = {
+            "session_id": session_id,
+            "title": session_data["title"],
+            "timestamp": timestamp,
+            "user_message": user_message,
+            "assistant_response": full_assistant_response,
+            "sources": sources
+        }
+        try:
+            with open(new_conversations_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(exchange, ensure_ascii=False) + "\n")
+                
+            # Real-time embedding into ChromaDB (Short-term memory)
+            if chroma_status and collection is not None:
+                document = f"User: {user_message}\nAssistant: {full_assistant_response}"
+                chunk_id = f"chunk_{session_id}_{len(session_data['messages']) // 2}"
+                collection.add(
+                    documents=[document],
+                    metadatas=[{
+                        "session_id": session_id,
+                        "title": session_data["title"],
+                        "date": timestamp,
+                        "type": "conversation"
+                    }],
+                    ids=[chunk_id]
+                )
+                print(f"Real-time STM update: Added chunk {chunk_id} to ChromaDB.")
+                
+        except Exception as e:
+            print(f"Error saving legacy exchange or updating STM: {e}")
+
+        # Segnale di fine stream
+        yield f"data: {json.dumps({'event': 'done', 'session_title': session_data['title'], 'session_id': session_id})}\n\n"
+
+    return Response(generate(), mimetype="text/event-stream")
 
 @app.route("/sessions", methods=["GET"])
 def get_sessions():

@@ -382,6 +382,39 @@
             font-size: 14px;
         }
 
+        .file-chip-loading {
+            background: rgba(255, 200, 0, 0.08);
+            border-color: rgba(255, 200, 0, 0.35);
+            color: #ffc800;
+            opacity: 0.9;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .file-chip-spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255, 200, 0, 0.3);
+            border-top-color: #ffc800;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            flex-shrink: 0;
+        }
+
+        .system-notice {
+            text-align: center;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            color: rgba(255, 180, 0, 0.75);
+            padding: 6px 20px;
+            margin: 4px 0;
+            background: rgba(255, 180, 0, 0.05);
+            border-radius: 4px;
+        }
+
         #message-input {
             resize: none;
             overflow-y: hidden;
@@ -1588,8 +1621,10 @@
 
         #memory-graph-container {
             width: 60%;
+            flex: 0 0 60%;
             position: relative;
             background: radial-gradient(circle at center, #0a0a20, #050510);
+            overflow: hidden;
         }
 
         #memory-graph-canvas {
@@ -1600,13 +1635,25 @@
 
         #memory-detail-panel {
             width: 40%;
+            flex: 0 0 40%;
+            min-width: 0;
+            box-sizing: border-box;
             background: rgba(10, 10, 25, 0.8);
             backdrop-filter: blur(20px);
             border-left: 1px solid rgba(255, 255, 255, 0.05);
             padding: 40px;
             overflow-y: auto;
+            overflow-x: hidden;
             display: flex;
             flex-direction: column;
+        }
+
+        #mv-detail-content {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            overflow-wrap: break-word;
+            word-break: break-word;
         }
 
         #mv-detail-empty {
@@ -1625,6 +1672,8 @@
             color: var(--cyan);
             font-size: 28px;
             outline: none;
+            overflow-wrap: break-word;
+            word-break: break-word;
         }
 
         .mv-detail-dates {
@@ -1647,7 +1696,22 @@
         .mv-detail-preview {
             flex: 1;
             margin-bottom: 30px;
+            overflow-y: auto;
+            max-height: 50vh;
         }
+
+        .mv-synthetic-text {
+            font-size: 13px;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.75);
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            max-height: 50vh;
+            overflow-y: auto;
+            margin-bottom: 30px;
+        }
+
 
         .mv-preview-msg {
             background: rgba(255, 255, 255, 0.03);
@@ -1717,11 +1781,13 @@
 
             #memory-graph-container {
                 width: 100%;
+                flex: 0 0 50%;
                 height: 50%;
             }
 
             #memory-detail-panel {
                 width: 100%;
+                flex: 0 0 50%;
                 height: 50%;
                 border-left: none;
                 border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -1819,7 +1885,7 @@
                     <div id="char-count">0 characters</div>
                 </div>
                 <input type="file" id="file-input" style="display:none"
-                    accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.json">
+                    accept=".pdf,.docx,.pptx,.xlsx,.txt,.md,.csv,.json,.xml,.yaml,.yml,.log">
             </div>
         </div>
     </div>
@@ -1891,39 +1957,38 @@
                     <div style="font-size: 40px; margin-bottom: 20px; opacity: 0.3;">🧠</div>
                 </div>
 
-            </div>
+                <div id="mv-detail-content" style="display:none">
+                    <div class="mv-detail-header">
+                        <h2 id="mv-detail-title" contenteditable="true">Title</h2>
+                        <div class="mv-detail-dates" id="mv-detail-dates">
+                            <!-- Date info -->
+                        </div>
+                    </div>
 
-            <div id="mv-detail-content" style="display:none">
-                <div class="mv-detail-header">
-                    <h2 id="mv-detail-title" contenteditable="true">Title</h2>
-                    <div class="mv-detail-dates" id="mv-detail-dates">
-                        <!-- Date info -->
+                    <div id="mv-session-only-info">
+                        <div class="mv-detail-stats" id="mv-detail-stats">
+                            0 messages · 0 words
+                        </div>
+                        <div class="mv-detail-preview" id="mv-detail-preview">
+                            <!-- Message previews -->
+                        </div>
                     </div>
-                </div>
 
-                <div id="mv-session-only-info">
-                    <div class="mv-detail-stats" id="mv-detail-stats">
-                        0 messages · 0 words
+                    <div id="mv-concept-only-info" style="display:none">
+                        <div id="mv-concept-body" class="mv-synthetic-text">
+                            <!-- Concept content -->
+                        </div>
                     </div>
-                    <div class="mv-detail-preview" id="mv-detail-preview">
-                        <!-- Message previews -->
-                    </div>
-                </div>
 
-                <div id="mv-concept-only-info" style="display:none">
-                    <div id="mv-concept-body" class="mv-synthetic-text" style="max-height: none; overflow: visible;">
-                        <!-- Concept content -->
-                    </div>
-                </div>
-
-                <div class="mv-detail-actions">
-                    <div id="mv-session-actions">
-                        <button id="mv-open-chat-btn" class="mv-btn mv-btn-primary">▶ OPEN THIS CHAT</button>
-                        <button id="mv-delete-btn" class="mv-btn mv-btn-danger">🗑️ DELETE</button>
-                    </div>
-                    <div id="mv-concept-actions" style="display:none">
-                        <div style="font-size: 11px; opacity: 0.5; font-style: italic;">
-                            This is a concept synthesized from your long-term memory.
+                    <div class="mv-detail-actions">
+                        <div id="mv-session-actions">
+                            <button id="mv-open-chat-btn" class="mv-btn mv-btn-primary">▶ OPEN THIS CHAT</button>
+                            <button id="mv-delete-btn" class="mv-btn mv-btn-danger">🗑️ DELETE</button>
+                        </div>
+                        <div id="mv-concept-actions" style="display:none">
+                            <div style="font-size: 11px; opacity: 0.5; font-style: italic;">
+                                This is a concept synthesized from your long-term memory.
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2265,7 +2330,7 @@
 
         let history = [];
         let abortController = null;
-        let currentFile = null;
+        let currentFile = null;      // { name, text } — extracted text from document
         let isGenerating = false;
 
         // --- Textarea Auto-resize ---
@@ -2311,32 +2376,45 @@
         fileInput.onchange = async (e) => {
             const file = e.target.files[0];
             if (!file) return;
-
-            if (file.size > 10 * 1024 * 1024) {
-                alert('File too large (max 10MB)');
-                fileInput.value = '';
-                return;
-            }
-
-            const base64 = await toBase64(file);
-            currentFile = {
-                name: file.name,
-                type: file.type,
-                data: base64
-            };
-
-            renderFilePreview();
             fileInput.value = '';
-        };
 
-        function toBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
-            });
-        }
+            // Show loading badge
+            currentFile = { name: file.name, text: null, loading: true };
+            renderFilePreview();
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const resp = await fetch('/extract_file', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await resp.json();
+
+                if (!resp.ok || result.error) {
+                    currentFile = null;
+                    renderFilePreview();
+                    const errMsg = result.error || `Errore HTTP ${resp.status}`;
+                    appendSystemNotice(`⚠️ Impossibile leggere il file: ${errMsg}`);
+                    return;
+                }
+
+                currentFile = {
+                    name: result.filename,
+                    text: result.text,
+                    charCount: result.char_count,
+                    loading: false
+                };
+                renderFilePreview();
+
+            } catch (err) {
+                currentFile = null;
+                renderFilePreview();
+                appendSystemNotice(`⚠️ Errore di rete durante l'upload: ${err.message}`);
+            }
+        };
 
         function renderFilePreview() {
             if (!currentFile) {
@@ -2346,12 +2424,32 @@
             }
 
             filePreviewArea.style.display = 'flex';
-            filePreviewArea.innerHTML = `
-                <div class="file-chip">
-                    <span>📎 ${currentFile.name}</span>
-                    <span class="remove-file" onclick="removeFile()">✕</span>
-                </div>
-            `;
+            if (currentFile.loading) {
+                filePreviewArea.innerHTML = `
+                    <div class="file-chip file-chip-loading">
+                        <span class="file-chip-spinner"></span>
+                        <span>Estrazione testo da <b>${currentFile.name}</b>...</span>
+                    </div>
+                `;
+            } else {
+                const kchars = currentFile.charCount
+                    ? ` · ${Math.round(currentFile.charCount / 1000)}k chars`
+                    : '';
+                filePreviewArea.innerHTML = `
+                    <div class="file-chip">
+                        <span>📄 <b>${currentFile.name}</b>${kchars}</span>
+                        <span class="remove-file" onclick="removeFile()">✕</span>
+                    </div>
+                `;
+            }
+        }
+
+        function appendSystemNotice(msg) {
+            const el = document.createElement('div');
+            el.className = 'system-notice';
+            el.textContent = msg;
+            chatMessages.appendChild(el);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
         function removeFile() {
@@ -2464,18 +2562,11 @@
             // File Attachment in message
             if (fileData) {
                 const f = document.createElement('div');
-                if (fileData.type.startsWith('image/')) {
-                    const img = document.createElement('img');
-                    img.src = fileData.data;
-                    img.classList.add('thumbnail-preview');
-                    f.appendChild(img);
-                } else {
-                    f.innerHTML = `
-                        <div class="file-attachment">
-                            <span>📄 ${fileData.name}</span>
-                        </div>
-                    `;
-                }
+                f.innerHTML = `
+                    <div class="file-attachment">
+                        <span>📄 ${fileData.name}</span>
+                    </div>
+                `;
                 m.appendChild(f);
             }
 
@@ -2495,6 +2586,35 @@
             if (shouldScroll) {
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }
+
+            return {
+                messageElement: m,
+                contentElement: t,
+                updateText: (newText) => {
+                    t.textContent = newText;
+                    if (shouldScroll) {
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    }
+                },
+                addThinking: (msg) => {
+                    let th = m.querySelector('.thinking-block');
+                    if (!th) {
+                        th = document.createElement('div');
+                        th.className = 'thinking-block';
+                        th.style.fontSize = '12px';
+                        th.style.color = '#ffd700';
+                        th.style.marginBottom = '8px';
+                        th.style.fontStyle = 'italic';
+                        th.style.opacity = '0.8';
+                        m.insertBefore(th, t);
+                    }
+                    th.textContent = '🧠 ' + msg;
+                },
+                removeThinking: () => {
+                    let th = m.querySelector('.thinking-block');
+                    if (th) th.remove();
+                }
+            };
         }
 
         let editingMessage = null;
@@ -2714,13 +2834,25 @@
             }
 
             try {
+                // Guard: don't send if file extraction is still in progress
+                if (currentFile && currentFile.loading) {
+                    appendSystemNotice('⏳ Attendi il completamento dell\'estrazione del file prima di inviare.');
+                    setLoadingState(false);
+                    return;
+                }
+
                 const payload = {
                     message: text,
                     history,
-                    file: fileToSend,
                     session_id: activeSessionId || null,
                     ...providerPayload
                 };
+
+                // Attach extracted document text if present
+                if (fileToSend && fileToSend.text) {
+                    payload.file_text = fileToSend.text;
+                    payload.file_name = fileToSend.name;
+                }
 
                 const resp = await fetch('/chat', {
                     method: 'POST',
@@ -2729,32 +2861,79 @@
                     signal: abortController.signal
                 });
 
-                const data = await resp.json();
                 removeTyping();
-                Graph.stopThinking();
-
-                if (data.error) {
-                    appendMessage('assistant', 'Errore di sistema: ' + data.error);
-                } else {
-                    const srcNames = data.sources || [];
-                    appendMessage('assistant', data.response, srcNames);
-
-                    const isNewSession = !activeSessionId && data.session_id;
-                    if (data.session_id) {
-                        activeSessionId = data.session_id;
-                    }
-
-                    if (isNewSession) {
-                        fetchGraph();
-                    } else if (activeSessionId) {
-                        Graph.activateNode(activeSessionId, 4000);
-                        Graph.updateNodeWeight(activeSessionId);
-                        if (Math.random() > 0.8) fetchGraph();
-                    }
-
-                    history.push({ role: 'user', content: text });
-                    history.push({ role: 'assistant', content: data.response });
+                
+                if (!resp.ok) {
+                    const errData = await resp.json().catch(() => ({}));
+                    Graph.stopThinking();
+                    appendMessage('assistant', 'Errore server: ' + (errData.error || resp.statusText));
+                    setLoadingState(false);
+                    return;
                 }
+
+                // Inizializza messaggio assistente vuoto
+                const assistantMsgObj = appendMessage('assistant', '');
+                let fullResponseText = '';
+                
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buffer = '';
+                let streamDone = false;
+                
+                while (!streamDone) {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        streamDone = true;
+                        break;
+                    }
+                    
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // Ultima riga incompleta
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const dataStr = line.substring(6).trim();
+                            if (!dataStr) continue;
+                            
+                            try {
+                                const data = JSON.parse(dataStr);
+                                
+                                if (data.event === 'session') {
+                                    const isNewSession = !activeSessionId && data.session_id;
+                                    if (data.session_id) activeSessionId = data.session_id;
+                                    
+                                    if (isNewSession) {
+                                        fetchGraph();
+                                    } else if (activeSessionId) {
+                                        Graph.activateNode(activeSessionId, 4000);
+                                        Graph.updateNodeWeight(activeSessionId);
+                                        if (Math.random() > 0.8) fetchGraph();
+                                    }
+                                } else if (data.event === 'think' || data.event === 'tool') {
+                                    assistantMsgObj.addThinking(data.message);
+                                } else if (data.event === 'message') {
+                                    assistantMsgObj.removeThinking();
+                                    fullResponseText += data.text;
+                                    assistantMsgObj.updateText(fullResponseText);
+                                } else if (data.event === 'error') {
+                                    assistantMsgObj.removeThinking();
+                                    fullResponseText += "\n[Errore: " + data.message + "]";
+                                    assistantMsgObj.updateText(fullResponseText);
+                                } else if (data.event === 'done') {
+                                    assistantMsgObj.removeThinking();
+                                    Graph.stopThinking();
+                                }
+                            } catch (e) {
+                                console.error("Error parsing SSE data:", e, "Data:", dataStr);
+                            }
+                        }
+                    }
+                }
+
+                Graph.stopThinking();
+                history.push({ role: 'user', content: text });
+                history.push({ role: 'assistant', content: fullResponseText });
             } catch (err) {
                 if (err.name === 'AbortError') {
                     console.log('Fetch aborted');
@@ -3287,23 +3466,81 @@
                 ctx.scale(cam.zoom, cam.zoom);
                 ctx.translate(-cam.x, -cam.y);
 
-                // Draw Edges
-                ctx.strokeStyle = 'rgba(0, 212, 255, 0.12)';
-                ctx.lineWidth = 1 / cam.zoom;
-                ctx.beginPath();
+                // Draw Edges — two passes: dim first, then highlighted for selected node
+                const selId = selectedNode ? selectedNode.id : null;
+                const hovId = hoveredNode ? hoveredNode.id : null;
+
+                // Pass 1: all edges (dimmed if a node is selected)
                 edges.forEach(e => {
                     const n1 = nodes.find(n => n.id === e.source);
                     const n2 = nodes.find(n => n.id === e.target);
                     if (!n1 || !n2) return;
+                    const isConnected = selId && (e.source === selId || e.target === selId);
+                    const isHovConn  = hovId && (e.source === hovId || e.target === hovId);
+                    if (isConnected || isHovConn) return; // drawn in pass 2
+                    ctx.beginPath();
                     ctx.moveTo(n1.x, n1.y);
                     ctx.lineTo(n2.x, n2.y);
+                    ctx.strokeStyle = selId ? 'rgba(0, 212, 255, 0.04)' : 'rgba(0, 212, 255, 0.12)';
+                    ctx.lineWidth = 1 / cam.zoom;
+                    ctx.stroke();
                 });
-                ctx.stroke();
+
+                // Pass 2: edges connected to selected / hovered node — bright glow
+                edges.forEach(e => {
+                    const n1 = nodes.find(n => n.id === e.source);
+                    const n2 = nodes.find(n => n.id === e.target);
+                    if (!n1 || !n2) return;
+                    const isConnected = selId && (e.source === selId || e.target === selId);
+                    const isHovConn  = hovId && !selId && (e.source === hovId || e.target === hovId);
+                    if (!isConnected && !isHovConn) return;
+
+                    // Determine color based on node type
+                    const otherNode = (e.source === (selId || hovId)) ? n2 : n1;
+                    const isWiki = otherNode.type === 'concept' || otherNode.type === 'wiki';
+                    const glowColor = isWiki ? 'rgba(255, 215, 0, 0.7)' : 'rgba(0, 212, 255, 0.7)';
+                    const solidColor = isWiki ? 'rgba(255, 215, 0, 0.45)' : 'rgba(0, 212, 255, 0.45)';
+
+                    ctx.beginPath();
+                    ctx.moveTo(n1.x, n1.y);
+                    ctx.lineTo(n2.x, n2.y);
+                    ctx.strokeStyle = solidColor;
+                    ctx.lineWidth = 2 / cam.zoom;
+                    ctx.shadowColor = glowColor;
+                    ctx.shadowBlur = 12;
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                });
 
                 // Draw Nodes
                 filteredNodes.forEach(n => {
                     const isSelected = selectedNode && selectedNode.id === n.id;
                     const isHovered = hoveredNode && hoveredNode.id === n.id;
+                    
+                    // Controlla se il nodo fa parte della selezione attiva
+                    let isConnected = false;
+                    if (selId) {
+                        if (isSelected) isConnected = true;
+                        else {
+                            isConnected = edges.some(e => 
+                                (e.source === selId && e.target === n.id) || 
+                                (e.target === selId && e.source === n.id)
+                            );
+                        }
+                        ctx.globalAlpha = isConnected ? 1.0 : 0.2;
+                    } else if (hovId) {
+                        if (isHovered) isConnected = true;
+                        else {
+                            isConnected = edges.some(e => 
+                                (e.source === hovId && e.target === n.id) || 
+                                (e.target === hovId && e.source === n.id)
+                            );
+                        }
+                        ctx.globalAlpha = isConnected ? 1.0 : 0.5;
+                    } else {
+                        ctx.globalAlpha = 1.0;
+                    }
+
                     ctx.beginPath();
                     ctx.arc(n.x, n.y, (isSelected || isHovered) ? n.radius + 3 : n.radius, 0, Math.PI * 2);
 
@@ -3315,11 +3552,12 @@
                         ctx.shadowColor = '#00d4ff';
                     }
 
-
                     ctx.shadowBlur = (isSelected || isHovered) ? 15 : 0;
                     ctx.fill();
                     ctx.shadowBlur = 0;
+                    ctx.globalAlpha = 1.0; // Reset
                 });
+
 
                 ctx.restore();
 
