@@ -82,14 +82,14 @@ Open your browser at `http://localhost:5000`.
 
 ## Choosing the AI Model (UI)
 
-In the chat interface, next to the **Send** button you'll find a � **network button**.  
+In the chat interface, next to the **Send** button you'll find a 🌐 **network button**.  
 Clicking it opens a dropdown with three options:
 
 | Option | Description |
 |--------|-------------|
-| � **LLM Locale** | Connects to a model running locally on your machine (Ollama, LM Studio, etc.). Uses the `DEEPSEEK_BASE_URL` / `DEEPSEEK_API_KEY` from `.env`. |
-| � **API Key** | Lets you enter any provider's Base URL, API Key, and model name directly from the UI. Credentials are saved in your browser's `localStorage`. |
-| � **Ulisse Memo v1** | Connects to the Ulisse Memo cloud model at `https://ulisse-memo.onrender.com`. No API key required. |
+| 💻 **LLM Locale** | Connects to a model running locally on your machine (Ollama, LM Studio, etc.). Uses the `DEEPSEEK_BASE_URL` / `DEEPSEEK_API_KEY` from `.env`. |
+| 🔑 **API Key** | Lets you enter any provider's Base URL, API Key, and model name directly from the UI. Credentials are saved in your browser's `localStorage`. |
+| 🔮 **Ulisse Memo v1** | Connects to the Ulisse Memo cloud model at `https://ulisse-memo.onrender.com`. No API key required. |
 
 Your choice is **persisted in the browser** across reloads.
 
