@@ -1,27 +1,31 @@
-# 📇 Wiki Index — Ulisse
+# Indice Wiki — Memoria a Lungo Termine di Ulisse
 
-Benvenuto nella memoria a lungo termine di Ulisse. Questo indice cataloga tutte le pagine attualmente presenti nella Wiki.
+## 🔴 Progetti Attivi
+
+- [[Mission 002 - LLM su Hardware Consumer]] — **Top One Priority**. Ricerca su architetture LLM per hardware consumer.
+  - [[Analisi Hardware - Livello 1]] — Studio GPU, CPU, memoria (completato)
+  - [[Mission 002 - Bibliografia: Hardware AI (Scheda 01)]] — Raccolta esterna hardware AI
+- [[Ulisse Memo]] — Deployment endpoint pubblico su Render
+
+## 🟢 Progetti Completati
+
+- [[Memoria e Wiki - Setup Iniziale]] — Sistema di memoria attivato e funzionante
+- [[Verifica Memoria]] — Test riuscito del sistema RAG
+
+## 📇 Persone
+
+- [[Toni Dorean]] — Ingegnere, creatore di Ulisse
+
+## 🏷️ Sistema
+
+- [[RUI]] — Ricerca Unitaria Intelligence
+- [[Uninet]] — Rete interna e wiki personale
+- [[Ulisse Argos]] — Assistente di deep search
+
+## 🧠 Conoscenza
+
+- [[Scheda Madre]] — Appunti personali di Toni sulla scheda madre
 
 ---
 
-## 🚀 Progetti
-
-- [[progetti attivi]] — Stato e panoramica di tutti i progetti in corso.
-- [[Ulisse Argos]] — Il sistema di ricerca e fetching che alimenta Ulisse.
-- [[Ulisse Brain]] — L'architettura completa di Ulisse: memoria, stack, installazione e filosofia.
-
-## 🧩 Moduli e Componenti
-
-- [[RUI]] — Dettagli sul modulo RUI.
-- [[u-Pharo]] — Dettagli su u-Pharo.
-- [[Uninet]] — Dettagli su Uninet.
-- [[annunci social]] — Sistema di annunci e comunicazioni social.
-
-## 📅 Personale e Studio
-
-- [[agenda]] — Appuntamenti, scadenze e impegni.
-- [[Signora Celeste]] — La personificazione della matematica.
-
----
-
-*Ultimo aggiornamento: 28 aprile 2026 — pulizia pagine ridondanti.*
+*Ultimo aggiornamento: 29 Aprile 2026*

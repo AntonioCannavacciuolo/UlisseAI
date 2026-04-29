@@ -2761,6 +2761,11 @@
         document.querySelectorAll('.provider-option').forEach(opt => {
             opt.addEventListener('click', () => {
                 const prov = opt.dataset.provider;
+                if (prov === 'memo') {
+                    alert('Ulisse Memo non è al momento disponibile per modifiche. L\'accesso è temporaneamente sospeso.');
+                    providerDropdown.classList.remove('open');
+                    return;
+                }
                 if (prov === 'apikey') {
                     providerDropdown.classList.remove('open');
                     openApikeyModal();
