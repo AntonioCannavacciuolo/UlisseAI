@@ -260,6 +260,119 @@ extra_tool_handlers.update({
     "wiki_update_index": wiki_update_index
 })
 
+# --- Native File Tools ---
+def native_read_file(args):
+    try:
+        import json
+        data = json.loads(args)
+        filepath = data.get("filepath", "")
+        # Risolve il path rispetto alla root del progetto
+        path = (project_root / filepath).resolve()
+        # Verifica di sicurezza basica
+        if not str(path).startswith(str(project_root)):
+            return "Error: Access denied (outside of project root)."
+        if path.exists() and path.is_file():
+            return path.read_text(encoding="utf-8")
+        return f"File not found: {filepath}"
+    except Exception as e:
+        return f"Read error: {str(e)}"
+
+def native_list_files(args):
+    try:
+        import json
+        data = json.loads(args)
+        directory = data.get("directory", ".")
+        path = (project_root / directory).resolve()
+        if not str(path).startswith(str(project_root)):
+            return "Error: Access denied (outside of project root)."
+        if path.exists() and path.is_dir():
+            files = []
+            for p in path.iterdir():
+                rel = p.relative_to(project_root)
+                prefix = "📁 " if p.is_dir() else "📄 "
+                files.append(f"{prefix}{rel}")
+            return "\n".join(files)
+        return f"Directory not found: {directory}"
+    except Exception as e:
+        return f"List error: {str(e)}"
+
+native_file_tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "native_read_file",
+            "description": "Legge il contenuto di un file nel workspace locale.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filepath": {"type": "string", "description": "Percorso relativo del file da leggere."}
+                },
+                "required": ["filepath"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "native_list_files",
+            "description": "Elenca i file e le cartelle in una directory del workspace.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "directory": {"type": "string", "description": "Percorso relativo della directory (default '.')"}
+                }
+            }
+        }
+    }
+]
+
+extra_tools.extend(native_file_tools)
+extra_tool_handlers.update({
+    "native_read_file": native_read_file,
+    "native_list_files": native_list_files
+})
+
+# --- Agno Agent Delegation Tool ---
+def delegate_to_agno_agent(args):
+    try:
+        import json
+        data = json.loads(args)
+        task = data.get("task", "")
+        if not task:
+            return "No task provided."
+        
+        from webapp.backend.ulisse_agno import ulisse_agent
+        
+        # Run the Agno agent synchronously
+        response = ulisse_agent.run(task)
+        if hasattr(response, "content"):
+            return f"Agno Agent Response:\n{response.content}"
+        return f"Agno Agent Response:\n{str(response)}"
+    except Exception as e:
+        return f"Error running Agno agent: {str(e)}"
+
+agno_tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "delegate_to_agno_agent",
+            "description": "Delega un task o una ricerca complessa all'agente Agno. L'agente Agno ha accesso al file system locale tramite il tool Workspace. Usalo per compiti che richiedono di leggere, esplorare o cercare file nel progetto locale.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task": {"type": "string", "description": "Il task dettagliato o la richiesta in linguaggio naturale da delegare all'agente Agno."}
+                },
+                "required": ["task"]
+            }
+        }
+    }
+]
+
+extra_tools.extend(agno_tools)
+extra_tool_handlers.update({
+    "delegate_to_agno_agent": delegate_to_agno_agent
+})
+
 
 # ---------------------------------------------------------------------------
 # File text-extraction helpers
@@ -606,18 +719,30 @@ def chat():
             assistant_message = response.choices[0].message
             
             while assistant_message.tool_calls:
-                messages.append(assistant_message)
+                # Convert to dict and ensure content is handled for API compatibility
+                msg_dict = assistant_message.model_dump()
+                if not msg_dict.get("content"):
+                    msg_dict["content"] = None
+                messages.append(msg_dict)
+
                 for tool_call in assistant_message.tool_calls:
-                    yield f"data: {json.dumps({'event': 'tool', 'message': f'Memoria: {tool_call.function.name}'})}\n\n"
+                    yield f"data: {json.dumps({'event': 'tool', 'message': f'Azione: {tool_call.function.name}'})}\n\n"
                     handler = extra_tool_handlers.get(tool_call.function.name)
+                    
                     if handler:
-                        result = handler(tool_call.function.arguments)
-                        messages.append({
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "name": tool_call.function.name,
-                            "content": result
-                        })
+                        try:
+                            result = handler(tool_call.function.arguments)
+                        except Exception as e:
+                            result = f"Error executing tool {tool_call.function.name}: {str(e)}"
+                    else:
+                        result = f"Error: Tool '{tool_call.function.name}' not found."
+                    
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "name": tool_call.function.name,
+                        "content": str(result)
+                    })
                 
                 yield f"data: {json.dumps({'event': 'think', 'message': 'Elaborazione...'})}\n\n"
                 response = chat_client.chat.completions.create(
@@ -1008,4 +1133,5 @@ def serve_static(filename):
     return send_from_directory(str(frontend_dir), filename)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    # Disabilitiamo il reloader automatico per evitare conflitti con i processi in background (Playwright/Agno) su Windows
+    app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
