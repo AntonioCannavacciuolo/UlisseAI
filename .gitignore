@@ -16,6 +16,7 @@ corpus/system_prompt.md
 corpus/*.json
 corpus/*.jsonl
 corpus/*.md
+corpus/agno_sessions.db
 corpus/wiki/pages/*.md
 corpus/wiki/raw/*
 corpus/wiki/log.md

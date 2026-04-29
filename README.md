@@ -27,6 +27,26 @@ The user doesn't need to configure any of this. It works out of the box.
 
 ---
 
+## Capabilities & Toolkits
+
+Ulisse is not just a chatbot; it is an **agentic system** equipped with a specialized Agno sub-agent and native tools to interact with the real world.
+
+### 🛠️ Native Tools
+Directly built into the core for maximum reliability:
+- **Workspace Reader:** List files and folders in your project (`native_list_files`).
+- **File Reader:** Open and read any file within the workspace (`native_read_file`).
+- **Wiki Management:** Read, write, and organize the semantic long-term memory.
+
+### 🤖 Agno Agent (Sub-Agent)
+A powerful autonomous engine for complex tasks:
+- **Web Search:** Browse the internet for real-time information.
+- **Python Runner:** Write and execute Python scripts to solve complex logic or math.
+- **Shell Access:** Execute terminal commands directly in the workspace.
+- **CSV Analysis:** Query large CSV datasets using SQL (via DuckDB).
+- **Browser Automation:** Advanced web scraping and interaction (requires optional [Browserbase](https://www.browserbase.com/) API keys).
+
+---
+
 ## Stack
 
 - Python 3.11+

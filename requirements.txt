@@ -12,3 +12,8 @@ PyMuPDF
 python-docx
 python-pptx
 openpyxl
+agno[os]
+ddgs
+browserbase
+playwright
+duckdb
