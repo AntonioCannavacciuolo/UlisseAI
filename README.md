@@ -11,7 +11,7 @@ Ulisse is a system that allows a language model to **remember what you told it**
 It works with:
 - **Local models** (Ollama, LM Studio, any OpenAI-compatible server)
 - **Remote APIs** (OpenAI, DeepSeek, Claude, any provider with an API key)
-- **Ulisse Memo v1** — a fine-tuned cloud model specifically built for this architecture
+- **Ulisse Memo v1** — *(Temporarily suspended for maintenance)* — A fine-tuned cloud model specifically built for this architecture.
 
 ---
 
@@ -109,7 +109,7 @@ Clicking it opens a dropdown with three options:
 |--------|-------------|
 | 💻 **LLM Locale** | Connects to a model running locally on your machine (Ollama, LM Studio, etc.). Uses the `DEEPSEEK_BASE_URL` / `DEEPSEEK_API_KEY` from `.env`. |
 | 🔑 **API Key** | Lets you enter any provider's Base URL, API Key, and model name directly from the UI. Credentials are saved in your browser's `localStorage`. |
-| 🔮 **Ulisse Memo v1** | Connects to the Ulisse Memo cloud model at `https://ulisse-memo.onrender.com`. No API key required. |
+| 🔮 **Ulisse Memo v1** | **(SUSPENDED)** Connects to the cloud model. Currently offline for updates. |
 
 Your choice is **persisted in the browser** across reloads.
 
@@ -136,11 +136,8 @@ and change it to the model name you want (e.g. `"gpt-4o"`, `"llama3"`, `"qwen2.5
 
 ### Option B — Ulisse Memo v1 endpoint
 
-By default the app connects to:
-
-```
-https://ulisse-memo.onrender.com
-```
+> [!NOTE]
+> **Maintenance Notice:** The Ulisse Memo v1 endpoint is currently suspended for maintenance and architectural updates. Please use a Local Model or a custom API Key in the meantime.
 
 ### Option C — Fully custom provider in code
 
