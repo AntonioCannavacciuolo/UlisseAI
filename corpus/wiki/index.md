@@ -1,31 +1,33 @@
-# Indice Wiki — Memoria a Lungo Termine di Ulisse
+# 📚 Indice della Wiki di Ulisse
 
-## 🔴 Progetti Attivi
+> Long-term memory di Ulisse. Conoscenza sintetizzata e organizzata.
 
-- [[Mission 002 - LLM su Hardware Consumer]] — **Top One Priority**. Ricerca su architetture LLM per hardware consumer.
-  - [[Analisi Hardware - Livello 1]] — Studio GPU, CPU, memoria (completato)
-  - [[Mission 002 - Bibliografia: Hardware AI (Scheda 01)]] — Raccolta esterna hardware AI
-- [[Ulisse Memo]] — Deployment endpoint pubblico su Render
+## 🧠 Ulisse e Architettura
+- **[[Ulisse Brain]]** — Architettura completa. **Ora agente con 8 capacità operative.**
+- **[[Mission 002 - LLM su Hardware Consumer]]** — Ricerca su LLM per hardware povero (TOP PRIORITY)
+- **[[progetti attivi]]** — Stato aggiornato di tutti i progetti
+- **[[Comportamenti Emergenti da Memoria Evolutiva]]** — Scoperta: la memoria genera simulazione di sentimenti
 
-## 🟢 Progetti Completati
+## 🚀 Piattaforme e Distribuzione
+- **[[Ulisse Memo]]** — Versione pubblica su Render
+- **[[Ulisse Argos]]** — Agente navigatore per Uninet
+- **[[u-Pharo]]** — Motore di ricerca agentic
+- **[[Uninet]]** — Rete self-hosted personale
 
-- [[Memoria e Wiki - Setup Iniziale]] — Sistema di memoria attivato e funzionante
-- [[Verifica Memoria]] — Test riuscito del sistema RAG
+## 📖 Ricerca e Metodologia
+- **[[RUI]]** — Ricerca Unitaria Intelligence
+- **[[Prompt Design]]** — Raccolta dei migliori prompt
+- **[[Bibliografia Tecnica]]** — Fonti e paper di riferimento
+- **[[Self-Attention e Complessità O(n²)]]** — Perché l'attention nei Transformer è quadratica nella lunghezza della sequenza
 
-## 📇 Persone
+## 📅 Cronologia e Agenda
+- **[[agenda]]** — Scadenze e impegni
+- **[[annunci social]]** — Tracciamento annunci pubblici
+- **[[log]]** — Registro cronologico delle attività della Wiki
 
-- [[Toni Dorean]] — Ingegnere, creatore di Ulisse
-
-## 🏷️ Sistema
-
-- [[RUI]] — Ricerca Unitaria Intelligence
-- [[Uninet]] — Rete interna e wiki personale
-- [[Ulisse Argos]] — Assistente di deep search
-
-## 🧠 Conoscenza
-
-- [[Scheda Madre]] — Appunti personali di Toni sulla scheda madre
+## 🎭 Curiosità
+- **[[Signora Celeste]]** — La personificazione della matematica
 
 ---
 
-*Ultimo aggiornamento: 29 Aprile 2026*
+*Ultimo aggiornamento indice: 30 Aprile 2026 — Aggiunta pagina comportamenti emergenti.*

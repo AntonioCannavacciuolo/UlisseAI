@@ -638,14 +638,93 @@
             background: rgba(8, 8, 24, 0.98);
             border: 1px solid rgba(245, 158, 11, 0.4);
             border-radius: 12px;
-            padding: 30px;
-            width: 420px;
-            max-width: 90vw;
+            width: 750px;
+            max-width: 95vw;
+            height: 500px;
             box-shadow: 0 0 40px rgba(245, 158, 11, 0.15);
+            display: flex;
+            overflow: hidden;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .apikey-sidebar {
+            width: 220px;
+            background: rgba(0, 0, 0, 0.3);
+            border-right: 1px solid rgba(245, 158, 11, 0.2);
+            display: flex;
+            flex-direction: column;
+            padding: 20px 0;
+        }
+
+        .apikey-sidebar-header {
+            padding: 0 20px 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .apikey-sidebar-header h4 {
+            margin: 0;
+            font-size: 10px;
+            letter-spacing: 1px;
+            color: rgba(245, 158, 11, 0.6);
+            text-transform: uppercase;
+        }
+
+        #apikey-sidebar-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .apikey-sidebar-item {
+            padding: 10px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+            text-align: left;
+            color: rgba(255, 255, 255, 0.7);
+            background: transparent;
+            text-transform: none;
+            letter-spacing: 0;
+            width: 100%;
+        }
+
+        .apikey-sidebar-item:hover {
+            background: rgba(245, 158, 11, 0.05);
+            color: #fff;
+        }
+
+        .apikey-sidebar-item.active {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
+            color: #f59e0b;
+            font-weight: 600;
+        }
+
+        .apikey-main-content {
+            flex: 1;
+            padding: 30px;
             display: flex;
             flex-direction: column;
             gap: 18px;
-            animation: fadeIn 0.3s ease;
+            overflow-y: auto;
+        }
+
+        .apikey-main-content h3 {
+            margin: 0;
+            color: #f59e0b;
+            font-size: 16px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-family: 'Courier New', monospace;
         }
 
         .apikey-modal-box h3 {
@@ -686,8 +765,20 @@
             background: #f59e0b !important;
             color: #000 !important;
             border-color: #f59e0b !important;
-            padding: 12px 24px;
+            padding: 10px 20px;
             font-weight: 700;
+            font-size: 13px;
+        }
+
+        .apikey-del-btn {
+            border-color: rgba(255, 68, 68, 0.3) !important;
+            color: #ff4444 !important;
+            padding: 10px 15px;
+            font-size: 13px;
+        }
+
+        .apikey-del-btn:hover {
+            background: rgba(255, 68, 68, 0.1) !important;
         }
 
         .apikey-save-btn:hover {
@@ -1893,22 +1984,42 @@
     <!-- API Key Modal -->
     <div id="apikey-modal">
         <div class="apikey-modal-box">
-            <h3>🔑 API Key Configuration</h3>
-            <div class="form-group">
-                <label>Provider Base URL</label>
-                <input type="text" id="apikey-base-url" placeholder="https://api.deepseek.com" />
+            <div class="apikey-sidebar">
+                <div class="apikey-sidebar-header">
+                    <h4>PROFILES</h4>
+                    <button onclick="addNewApikeyConfig()"
+                        style="padding:2px 8px; font-size:10px; border-radius:4px; border-color:rgba(245, 158, 11, 0.4); color:#f59e0b;">+
+                        NEW</button>
+                </div>
+                <div id="apikey-sidebar-list">
+                    <!-- Buttons will be injected here -->
+                </div>
             </div>
-            <div class="form-group">
-                <label>API Key</label>
-                <input type="password" id="apikey-value" placeholder="sk-..." />
-            </div>
-            <div class="form-group">
-                <label>Model name</label>
-                <input type="text" id="apikey-model" placeholder="deepseek-chat" />
-            </div>
-            <div class="modal-actions">
-                <button onclick="closeApikeyModal()" style="border-color:rgba(255,255,255,0.2);color:#888;">Cancel</button>
-                <button class="apikey-save-btn" onclick="saveApikeyConfig()">Save & Activate</button>
+            <div class="apikey-main-content">
+                <h3>🔑 API Key Configuration</h3>
+                <div class="form-group">
+                    <label>Profile Title</label>
+                    <input type="text" id="apikey-title" placeholder="e.g. DeepSeek Chat" />
+                </div>
+                <div class="form-group">
+                    <label>Provider Base URL</label>
+                    <input type="text" id="apikey-base-url" placeholder="https://api.deepseek.com" />
+                </div>
+                <div class="form-group">
+                    <label>API Key</label>
+                    <input type="password" id="apikey-value" placeholder="sk-..." />
+                </div>
+                <div class="form-group">
+                    <label>Model name</label>
+                    <input type="text" id="apikey-model" placeholder="deepseek-chat" />
+                </div>
+                <div class="modal-actions" style="margin-top:auto;">
+                    <button class="apikey-del-btn" id="apikey-delete-btn" onclick="deleteApikeyConfig()"
+                        style="margin-right:auto; display:none;">Delete</button>
+                    <button onclick="closeApikeyModal()"
+                        style="border-color:rgba(255,255,255,0.2);color:#888;">Cancel</button>
+                    <button class="apikey-save-btn" onclick="saveApikeyConfig()">Save & Activate</button>
+                </div>
             </div>
         </div>
     </div>
@@ -2543,7 +2654,10 @@
                 const copyBtn = document.createElement('button');
                 copyBtn.classList.add('msg-action-btn');
                 copyBtn.textContent = '📋 Copy';
-                copyBtn.onclick = () => copyToClipboard(text, copyBtn);
+                copyBtn.onclick = () => {
+                    const content = m.querySelector('.content').textContent;
+                    copyToClipboard(content, copyBtn);
+                };
                 actions.appendChild(copyBtn);
 
                 const retryBtn = document.createElement('button');
@@ -2718,29 +2832,51 @@
         // ================================================================
         //  PROVIDER SELECTOR
         // ================================================================
+        // ================================================================
+        //  PROVIDER SELECTOR
+        // ================================================================
         const PROVIDERS = {
-            local:  { label: 'LLM Locale',       badgeClass: 'local',  btnClass: 'active-local'  },
-            apikey: { label: 'API Key',           badgeClass: 'apikey', btnClass: 'active-apikey' },
-            memo:   { label: 'Ulisse Memo v1',    badgeClass: 'memo',   btnClass: 'active-memo'   }
+            local: { label: 'LLM Locale', badgeClass: 'local', btnClass: 'active-local' },
+            apikey: { label: 'API Key', badgeClass: 'apikey', btnClass: 'active-apikey' },
+            memo: { label: 'Ulisse Memo v1', badgeClass: 'memo', btnClass: 'active-memo' }
         };
 
         let currentProvider = localStorage.getItem('ulisse_provider') || 'local';
-        let apikeyConfig = JSON.parse(localStorage.getItem('ulisse_apikey_cfg') || 'null') || { baseUrl: '', apiKey: '', model: '' };
 
-        const providerBtn      = document.getElementById('provider-btn');
+        // Multi-config management
+        let apikeyConfigs = JSON.parse(localStorage.getItem('ulisse_apikey_configs') || '[]');
+        let currentApikeyIndex = -1; // -1 means adding a new one, or none selected
+
+        // Migration from old single config if exists
+        const oldConfig = JSON.parse(localStorage.getItem('ulisse_apikey_cfg') || 'null');
+        if (oldConfig && apikeyConfigs.length === 0) {
+            apikeyConfigs.push({
+                title: 'Default Profile',
+                baseUrl: oldConfig.baseUrl || '',
+                apiKey: oldConfig.apiKey || '',
+                model: oldConfig.model || ''
+            });
+            localStorage.setItem('ulisse_apikey_configs', JSON.stringify(apikeyConfigs));
+            localStorage.removeItem('ulisse_apikey_cfg');
+        }
+
+        // The currently active config (for chat requests)
+        let activeApikeyConfig = JSON.parse(localStorage.getItem('ulisse_active_apikey_cfg') || 'null');
+        if (!activeApikeyConfig && apikeyConfigs.length > 0) {
+            activeApikeyConfig = apikeyConfigs[0];
+        }
+
+        const providerBtn = document.getElementById('provider-btn');
         const providerDropdown = document.getElementById('provider-dropdown');
-        const providerBadge    = document.getElementById('provider-badge');
-        const apikeyModal      = document.getElementById('apikey-modal');
+        const providerBadge = document.getElementById('provider-badge');
+        const apikeyModal = document.getElementById('apikey-modal');
 
         function applyProviderUI(provider) {
-            // Remove old classes
             Object.values(PROVIDERS).forEach(p => providerBtn.classList.remove(p.btnClass));
             providerBtn.classList.add(PROVIDERS[provider].btnClass);
-            // Badge color
             providerBadge.className = 'provider-badge';
-            if (provider === 'memo')   providerBadge.classList.add('memo');
+            if (provider === 'memo') providerBadge.classList.add('memo');
             if (provider === 'apikey') providerBadge.classList.add('apikey');
-            // Mark selected option
             document.querySelectorAll('.provider-option').forEach(opt => {
                 opt.classList.toggle('selected', opt.dataset.provider === provider);
             });
@@ -2781,10 +2917,52 @@
             }
         });
 
+        function renderApikeySidebar() {
+            const list = document.getElementById('apikey-sidebar-list');
+            list.innerHTML = '';
+            apikeyConfigs.forEach((cfg, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'apikey-sidebar-item';
+                if (idx === currentApikeyIndex) btn.classList.add('active');
+                btn.textContent = cfg.title || `Profile ${idx + 1}`;
+                btn.onclick = () => loadApikeyConfig(idx);
+                list.appendChild(btn);
+            });
+        }
+
+        function loadApikeyConfig(idx) {
+            currentApikeyIndex = idx;
+            const cfg = apikeyConfigs[idx];
+            document.getElementById('apikey-title').value = cfg.title || '';
+            document.getElementById('apikey-base-url').value = cfg.baseUrl || '';
+            document.getElementById('apikey-value').value = cfg.apiKey || '';
+            document.getElementById('apikey-model').value = cfg.model || '';
+            document.getElementById('apikey-delete-btn').style.display = 'block';
+            renderApikeySidebar();
+        }
+
+        function addNewApikeyConfig() {
+            currentApikeyIndex = -1;
+            document.getElementById('apikey-title').value = '';
+            document.getElementById('apikey-base-url').value = '';
+            document.getElementById('apikey-value').value = '';
+            document.getElementById('apikey-model').value = '';
+            document.getElementById('apikey-delete-btn').style.display = 'none';
+            renderApikeySidebar();
+        }
+
         function openApikeyModal() {
-            document.getElementById('apikey-base-url').value = apikeyConfig.baseUrl || '';
-            document.getElementById('apikey-value').value    = apikeyConfig.apiKey  || '';
-            document.getElementById('apikey-model').value    = apikeyConfig.model   || '';
+            if (apikeyConfigs.length > 0) {
+                // Load the active config if none is selected
+                let idxToLoad = 0;
+                if (activeApikeyConfig) {
+                    const found = apikeyConfigs.findIndex(c => c.title === activeApikeyConfig.title && c.apiKey === activeApikeyConfig.apiKey);
+                    if (found !== -1) idxToLoad = found;
+                }
+                loadApikeyConfig(idxToLoad);
+            } else {
+                addNewApikeyConfig();
+            }
             apikeyModal.classList.add('open');
         }
 
@@ -2793,14 +2971,47 @@
         }
 
         function saveApikeyConfig() {
-            apikeyConfig = {
-                baseUrl: document.getElementById('apikey-base-url').value.trim(),
-                apiKey:  document.getElementById('apikey-value').value.trim(),
-                model:   document.getElementById('apikey-model').value.trim()
-            };
-            localStorage.setItem('ulisse_apikey_cfg', JSON.stringify(apikeyConfig));
+            const title = document.getElementById('apikey-title').value.trim() || 'Untitled Profile';
+            const baseUrl = document.getElementById('apikey-base-url').value.trim();
+            const apiKey = document.getElementById('apikey-value').value.trim();
+            const model = document.getElementById('apikey-model').value.trim();
+
+            if (!apiKey) {
+                alert('API Key is required.');
+                return;
+            }
+
+            const newCfg = { title, baseUrl, apiKey, model };
+
+            if (currentApikeyIndex >= 0) {
+                apikeyConfigs[currentApikeyIndex] = newCfg;
+            } else {
+                apikeyConfigs.push(newCfg);
+                currentApikeyIndex = apikeyConfigs.length - 1;
+            }
+
+            activeApikeyConfig = newCfg;
+            localStorage.setItem('ulisse_apikey_configs', JSON.stringify(apikeyConfigs));
+            localStorage.setItem('ulisse_active_apikey_cfg', JSON.stringify(activeApikeyConfig));
+
             selectProvider('apikey');
             closeApikeyModal();
+        }
+
+        function deleteApikeyConfig() {
+            if (currentApikeyIndex < 0) return;
+            if (!confirm('Eliminare questo profilo?')) return;
+
+            apikeyConfigs.splice(currentApikeyIndex, 1);
+            localStorage.setItem('ulisse_apikey_configs', JSON.stringify(apikeyConfigs));
+
+            if (apikeyConfigs.length > 0) {
+                loadApikeyConfig(0);
+            } else {
+                activeApikeyConfig = null;
+                localStorage.removeItem('ulisse_active_apikey_cfg');
+                addNewApikeyConfig();
+            }
         }
 
         // Dismiss modal on backdrop click
@@ -2832,10 +3043,10 @@
 
             // Build provider payload
             const providerPayload = { provider: currentProvider };
-            if (currentProvider === 'apikey') {
-                providerPayload.api_key  = apikeyConfig.apiKey;
-                providerPayload.base_url = apikeyConfig.baseUrl;
-                providerPayload.model    = apikeyConfig.model;
+            if (currentProvider === 'apikey' && activeApikeyConfig) {
+                providerPayload.api_key  = activeApikeyConfig.apiKey;
+                providerPayload.base_url = activeApikeyConfig.baseUrl;
+                providerPayload.model    = activeApikeyConfig.model;
             }
 
             try {

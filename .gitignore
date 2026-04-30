@@ -12,10 +12,9 @@ dist/
 corpus/files/
 corpus/sessions/
 corpus/new_conversations.jsonl
-corpus/system_prompt.md
+
 corpus/*.json
 corpus/*.jsonl
-corpus/*.md
 corpus/agno_sessions.db
 corpus/wiki/pages/*.md
 corpus/wiki/raw/*
