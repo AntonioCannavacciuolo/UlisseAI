@@ -152,13 +152,16 @@ You can add new branches here to support additional providers at the server leve
 
 ---
 
-## Philosophy
+3. **Control belongs to the user.** You choose the model and the data to load. No black boxes.
 
-Ulisse exists for three reasons:
+---
 
-1. **Memory shouldn't be optional.** Chatbots forget everything after a few messages. Ulisse is built to remember.
-2. **Your data is yours.** Every instance is local. No central server. No extraction.
-3. **Control belongs to the user.** You choose the model, the prompt, the data to load. No black boxes.
+## System Prompt
+
+Ulisse operates using a specialized and delicate system prompt located in `corpus/system_prompt.md`. 
+
+> [!IMPORTANT]
+> **Do not modify the system prompt.** The entire memory architecture (STM and LTM) and the ability to manage the semantic Wiki depend on the specific instructions contained in this file. Altering the prompt may cause the system to fail in its core functions.
 
 ---
 
