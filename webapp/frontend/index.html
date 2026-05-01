@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ULISSE BRAIN</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
     <style>
         :root {
             --bg: #0a0a1a;
@@ -1884,7 +1888,120 @@
                 border-top: 1px solid rgba(255, 255, 255, 0.1);
             }
         }
+
+        /* --- MARKDOWN STYLES --- */
+        .message .content {
+            white-space: normal !important;
+            word-break: break-word;
+        }
+
+        .message .content p { margin: 0 0 12px 0; }
+        .message .content p:last-child { margin-bottom: 0; }
+        
+        .message .content code {
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--cyan);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            border: 1px solid rgba(0, 212, 255, 0.15);
+        }
+
+        .message .content pre {
+            margin: 18px 0;
+            background: #1a1b26;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+
+        .message .content pre code {
+            display: block;
+            background: transparent;
+            color: #a9b1d6;
+            padding: 18px;
+            overflow-x: auto;
+            font-size: 13.5px;
+            line-height: 1.6;
+            border: none;
+        }
+
+        .code-container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 18px;
+            background: rgba(255, 255, 255, 0.04);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            color: rgba(255, 255, 255, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .copy-code-btn {
+            background: rgba(0, 212, 255, 0.05);
+            border: 1px solid rgba(0, 212, 255, 0.25);
+            color: var(--cyan);
+            padding: 4px 10px;
+            font-size: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+
+        .copy-code-btn:hover {
+            background: rgba(0, 212, 255, 0.15);
+            border-color: var(--cyan);
+        }
+
+        .copy-code-btn.copied {
+            border-color: #22c55e;
+            color: #22c55e;
+            background: rgba(34, 197, 94, 0.1);
+        }
+
+        .message .content ul, .message .content ol {
+            margin: 12px 0;
+            padding-left: 28px;
+        }
+
+        .message .content li {
+            margin-bottom: 6px;
+        }
+
+        .message .content blockquote {
+            border-left: 4px solid var(--cyan);
+            background: rgba(0, 212, 255, 0.03);
+            margin: 15px 0;
+            padding: 12px 20px;
+            font-style: italic;
+            border-radius: 0 8px 8px 0;
+            color: rgba(255,255,255,0.9);
+        }
+
+        .message .content strong { 
+            color: var(--cyan); 
+            text-shadow: 0 0 5px rgba(0, 212, 255, 0.2);
+        }
+
+        .message .content h1, .message .content h2, .message .content h3 {
+            margin: 20px 0 10px;
+            color: var(--cyan);
+            font-family: 'Courier New', monospace;
+        }
     </style>
+
 
 </head>
 
@@ -2109,6 +2226,78 @@
     </div>
 
     <script>
+        // --- MARKDOWN CONFIG ---
+        const renderer = new marked.Renderer();
+        const originalCodeRenderer = renderer.code;
+        renderer.code = function({text, lang}) {
+            const validLang = (lang && hljs.getLanguage(lang)) ? lang : 'plaintext';
+            const highlighted = hljs.highlight(text, { language: validLang }).value;
+            return `
+                <div class="code-container">
+                    <div class="code-header">
+                        <span>${validLang}</span>
+                        <button class="copy-code-btn" onclick="copyCodeToClipboard(this)">Copy</button>
+                    </div>
+                    <pre><code class="hljs language-${validLang}">${highlighted}</code></pre>
+                </div>
+            `;
+        };
+
+        marked.setOptions({
+            renderer: renderer,
+            highlight: function(code, lang) {
+                const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+                return hljs.highlight(code, { language }).value;
+            },
+            langPrefix: 'hljs language-',
+            breaks: true,
+            gfm: true
+        });
+
+        async function genericCopyToClipboard(text, btn, isCode = false) {
+            const originalText = btn.textContent;
+            const setSuccess = () => {
+                btn.textContent = '✓ Copied!';
+                if (isCode) btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    if (isCode) btn.classList.remove('copied');
+                }, 2000);
+            };
+
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(text);
+                    setSuccess();
+                    return;
+                }
+            } catch (err) {
+                console.warn('Clipboard API failed:', err);
+            }
+
+            // Fallback for non-secure contexts (HTTP via IP)
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            textArea.style.top = "0";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                if (document.execCommand('copy')) setSuccess();
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+            }
+            document.body.removeChild(textArea);
+        }
+
+        async function copyCodeToClipboard(btn) {
+            const container = btn.closest('.code-container');
+            const code = container.querySelector('code').innerText;
+            await genericCopyToClipboard(code, btn, true);
+        }
+
         const Graph = (() => {
             const canvas = document.getElementById('brain-graph'), ctx = canvas.getContext('2d');
             const tooltip = document.getElementById('graph-tooltip'), infoPanel = document.getElementById('node-info');
@@ -2570,17 +2759,15 @@
 
         // --- Conversation Management ---
         newChatBtn.onclick = () => {
-            if (history.length === 0 || confirm('Start a new conversation? Current history will be lost.')) {
-                activeSessionId = null;
-                history = [];
-                chatMessages.innerHTML = '';
-                chatMessages.appendChild(emptyState);
-                emptyState.style.display = 'flex';
-                removeFile();
-                messageInput.value = '';
-                autoResizeTextarea();
-                updateCharCount();
-            }
+            activeSessionId = null;
+            history = [];
+            chatMessages.innerHTML = '';
+            chatMessages.appendChild(emptyState);
+            emptyState.style.display = 'flex';
+            removeFile();
+            messageInput.value = '';
+            autoResizeTextarea();
+            updateCharCount();
         };
 
         function useSuggestion(text) {
@@ -2592,14 +2779,7 @@
 
         // --- Message Actions ---
         async function copyToClipboard(text, btn) {
-            try {
-                await navigator.clipboard.writeText(text);
-                const originalText = btn.textContent;
-                btn.textContent = '✓ Copied!';
-                setTimeout(() => btn.textContent = originalText, 2000);
-            } catch (err) {
-                console.error('Copy error:', err);
-            }
+            await genericCopyToClipboard(text, btn, false);
         }
 
         function retryLastMessage() {
@@ -2633,6 +2813,7 @@
         // --- Chat Logic ---
         function appendMessage(role, text, sources = [], fileData = null, shouldScroll = true) {
             emptyState.style.display = 'none';
+            let currentText = text;
 
             const now = new Date();
             const timestamp = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
@@ -2648,15 +2829,14 @@
                 const editBtn = document.createElement('button');
                 editBtn.classList.add('msg-action-btn');
                 editBtn.textContent = '✏️';
-                editBtn.onclick = () => startEdit(m, text);
+                editBtn.onclick = () => startEdit(m, currentText);
                 actions.appendChild(editBtn);
             } else {
                 const copyBtn = document.createElement('button');
                 copyBtn.classList.add('msg-action-btn');
                 copyBtn.textContent = '📋 Copy';
                 copyBtn.onclick = () => {
-                    const content = m.querySelector('.content').textContent;
-                    copyToClipboard(content, copyBtn);
+                    copyToClipboard(currentText, copyBtn);
                 };
                 actions.appendChild(copyBtn);
 
@@ -2670,7 +2850,7 @@
 
             const t = document.createElement('div');
             t.classList.add('content');
-            t.textContent = text;
+            t.innerHTML = marked.parse(text);
             m.appendChild(t);
 
             // File Attachment in message
@@ -2705,7 +2885,8 @@
                 messageElement: m,
                 contentElement: t,
                 updateText: (newText) => {
-                    t.textContent = newText;
+                    currentText = newText;
+                    t.innerHTML = marked.parse(newText);
                     if (shouldScroll) {
                         chatMessages.scrollTop = chatMessages.scrollHeight;
                     }
@@ -3221,7 +3402,8 @@
                 data.messages.slice(-10).forEach(m => {
                     const div = document.createElement('div');
                     div.className = `sp-msg ${m.role}`;
-                    div.innerHTML = `<span class="role">${m.role}</span><div class="content">${m.content.substring(0, 200)}${m.content.length > 200 ? '...' : ''}</div>`;
+                    const contentPreview = m.content.length > 200 ? m.content.substring(0, 200) + '...' : m.content;
+                    div.innerHTML = `<span class="role">${m.role}</span><div class="content">${marked.parse(contentPreview)}</div>`;
                     spHistoryPreview.appendChild(div);
                 });
 
@@ -3837,7 +4019,8 @@
                             const div = document.createElement('div');
                             div.className = `mv-preview-msg ${m.role}`;
                             const content = m.content || '';
-                            div.innerHTML = `<span class="role">${m.role}</span>${content.substring(0, 180)}${content.length > 180 ? '...' : ''}`;
+                            const preview = content.length > 180 ? content.substring(0, 180) + '...' : content;
+                            div.innerHTML = `<span class="role">${m.role}</span>${marked.parse(preview)}`;
                             detailPreview.appendChild(div);
                         });
                     } catch (err) { console.error('Error fetching details:', err); }
