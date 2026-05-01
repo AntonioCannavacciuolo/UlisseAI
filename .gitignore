@@ -18,6 +18,7 @@ corpus/*.jsonl
 corpus/agno_sessions.db
 corpus/wiki/pages/*.md
 corpus/wiki/raw/*
+corpus/wiki/index.md
 corpus/wiki/log.md
 vectordb/
 vault/
