@@ -1687,10 +1687,27 @@
             transition: all 0.3s;
         }
 
-        #mv-search-input:focus {
+        #mv-search-input:focus, #graph-search-input:focus {
             border-color: var(--cyan);
             background: rgba(255, 255, 255, 0.1);
             box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
+        }
+
+        #graph-search-input {
+            width: 150px;
+            background: rgba(0, 10, 30, 0.8);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            color: #fff;
+            padding: 8px 15px;
+            border-radius: 4px;
+            outline: none;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+
+        #graph-search-input:focus {
+            width: 220px;
         }
 
         #mv-close-btn {
@@ -2008,9 +2025,11 @@
 <body>
     <div id="app">
         <div id="left-panel">
-            <button id="refresh-graph-btn"
-                style="position:absolute; top:20px; left:20px; z-index:10; font-size:12px; padding: 8px 12px; background:rgba(0,10,30,0.8); backdrop-filter:blur(5px)">REFRESH
-                GRAPH</button>
+            <div style="position:absolute; top:20px; left:20px; z-index:10; display:flex; gap:10px;">
+                <button id="refresh-graph-btn"
+                    style="font-size:12px; padding: 8px 12px; background:rgba(0,10,30,0.8); backdrop-filter:blur(5px); border: 1px solid rgba(0, 212, 255, 0.3); color: var(--cyan);">REFRESH</button>
+                <input type="text" id="graph-search-input" placeholder="Search graph...">
+            </div>
             <canvas id="brain-graph"></canvas>
             <div id="graph-tooltip"></div>
             <div id="node-info">
@@ -2312,6 +2331,7 @@
             // Reasoning path state
             let rpNodes = [], rpStart = 0, rpDur = 3000;
             let thinkingInterval = null;
+            let searchQuery = '';
             // Type colors
             const TYPE_COLORS = { session: '#00d4ff', concept: '#ffd700', system: '#aa66ff', core: '#00d4ff', memory: '#44cc88', unknown: '#888899' };
             function typeColor(t) { return TYPE_COLORS[t] || TYPE_COLORS.unknown }
@@ -2479,8 +2499,12 @@
                     const isActiveSession = n.id === activeSessionId;
                     const isConnSel = selConns && selConns.has(n.id);
                     const isRP = rpActive && rpNodes.includes(n.id);
+                    const isMatch = searchQuery && (n.label || n.id).toLowerCase().includes(searchQuery.toLowerCase());
+                    
                     // Focus mode fade
-                    if (focusing && !isSel && !isConnSel && !isActiveSession) { ctx.globalAlpha = 0.18 } else { ctx.globalAlpha = 1 }
+                    if (focusing && !isSel && !isConnSel && !isActiveSession) { ctx.globalAlpha = 0.18 } 
+                    else if (searchQuery && !isMatch) { ctx.globalAlpha = 0.1 }
+                    else { ctx.globalAlpha = 1 }
                     // Size - Fixed for sessions, slightly larger for core
                     const baseR = (n.type === 'core' ? 10 : 6) / cam.zoom;
                     let r = baseR;
@@ -2498,6 +2522,7 @@
                     const col = typeColor(n.type);
 
                     if (isActiveSession) { ctx.fillStyle = '#fff'; ctx.shadowBlur = 25; ctx.shadowColor = '#fff' }
+                    else if (isMatch) { ctx.fillStyle = '#fff'; ctx.shadowBlur = 20; ctx.shadowColor = '#00d4ff' }
                     else if (isRP) { ctx.fillStyle = '#fff'; ctx.shadowBlur = 22; ctx.shadowColor = '#00ffc8' }
                     else if (isAct || isSel) { ctx.fillStyle = '#fff'; ctx.shadowBlur = 18; ctx.shadowColor = col }
                     else if (isHov || isConnSel) { ctx.fillStyle = col; ctx.shadowBlur = 10; ctx.shadowColor = col }
@@ -2511,8 +2536,8 @@
                     ctx.fill(); ctx.shadowBlur = 0;
                     // Label
                     const fs = Math.max(9, 11 / cam.zoom);
-                    ctx.font = (isAct || isSel || isRP) ? `bold ${fs}px Courier New` : `${fs}px Courier New`;
-                    ctx.textAlign = 'center'; ctx.fillStyle = (isAct || isSel || isHov || isRP) ? '#fff' : 'rgba(255,255,255,0.5)';
+                    ctx.font = (isAct || isSel || isRP || isMatch) ? `bold ${fs}px Courier New` : `${fs}px Courier New`;
+                    ctx.textAlign = 'center'; ctx.fillStyle = (isAct || isSel || isHov || isRP || isMatch) ? '#fff' : 'rgba(255,255,255,0.5)';
                     const labelText = n.label || n.id;
                     const lbl = labelText.length > 22 ? labelText.substring(0, 19) + '...' : labelText;
                     ctx.fillText(lbl, n.x, n.y + r + fs + 2 / cam.zoom);
@@ -2610,7 +2635,7 @@
 
                 canvas.addEventListener('touchend', () => { dragging = null; panning = false; lastTouchDist = 0; });
             }
-            return { initGraph, createNode, createEdge, activateNode, updateGraph, highlightReasoningPath, updateNodeWeight, applyDecay, startThinking, stopThinking };
+            return { initGraph, createNode, createEdge, activateNode, updateGraph, highlightReasoningPath, updateNodeWeight, applyDecay, startThinking, stopThinking, setSearchQuery: (q) => { searchQuery = q; } };
         })();
 
         // ================================================================
@@ -3372,6 +3397,13 @@
             });
         } else {
             console.warn('ATTENZIONE: Pulsante refresh-graph-btn non trovato nel DOM!');
+        }
+
+        const graphSearchInput = document.getElementById('graph-search-input');
+        if (graphSearchInput) {
+            graphSearchInput.addEventListener('input', (e) => {
+                Graph.setSearchQuery(e.target.value);
+            });
         }
 
         // --- Session Panel Logic ---
