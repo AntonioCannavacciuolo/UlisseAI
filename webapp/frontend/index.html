@@ -622,6 +622,83 @@
         .provider-badge.memo { background: #a855f7; }
         .provider-badge.apikey { background: #f59e0b; }
 
+        /* --- LOCAL MODAL --- */
+        #local-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 20000;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(8px);
+            align-items: center;
+            justify-content: center;
+        }
+
+        #local-modal.open {
+            display: flex;
+        }
+
+        .local-modal-box {
+            background: rgba(8, 8, 24, 0.98);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            border-radius: 12px;
+            width: 500px;
+            max-width: 95vw;
+            box-shadow: 0 0 40px rgba(34, 197, 94, 0.15);
+            display: flex;
+            flex-direction: column;
+            padding: 30px;
+            gap: 18px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .local-modal-box h3 {
+            margin: 0;
+            color: #22c55e;
+            font-size: 16px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-family: 'Courier New', monospace;
+        }
+
+        .local-modal-box .form-group label {
+            color: rgba(255,255,255,0.6);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .local-modal-box input {
+            width: 100%;
+            background: rgba(10, 10, 26, 0.9);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #fff;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .local-modal-box input:focus {
+            border-color: #22c55e;
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.2);
+        }
+
+        .local-save-btn {
+            background: #22c55e !important;
+            color: #000 !important;
+            border-color: #22c55e !important;
+            padding: 12px 20px;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .local-save-btn:hover {
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.4) !important;
+        }
+
         /* --- API KEY MODAL --- */
         #apikey-modal {
             display: none;
@@ -2117,6 +2194,26 @@
         </div>
     </div>
 
+    <!-- Local LLM Modal -->
+    <div id="local-modal">
+        <div class="local-modal-box">
+            <h3>💻 Local LLM Settings</h3>
+            <div class="form-group">
+                <label>Ollama / Local Base URL</label>
+                <input type="text" id="local-base-url" placeholder="http://localhost:11434/v1" />
+            </div>
+            <div class="form-group">
+                <label>Model Name</label>
+                <input type="text" id="local-model" placeholder="llama3" />
+            </div>
+            <div class="modal-actions" style="margin-top:10px;">
+                <button onclick="closeLocalModal()"
+                    style="border-color:rgba(255,255,255,0.2);color:#888;">Cancel</button>
+                <button class="local-save-btn" onclick="saveLocalConfig()">Save & Activate</button>
+            </div>
+        </div>
+    </div>
+
     <!-- API Key Modal -->
     <div id="apikey-modal">
         <div class="apikey-modal-box">
@@ -2916,7 +3013,7 @@
                         chatMessages.scrollTop = chatMessages.scrollHeight;
                     }
                 },
-                addThinking: (msg) => {
+                addThinking: (msg, append = false) => {
                     let th = m.querySelector('.thinking-block');
                     if (!th) {
                         th = document.createElement('div');
@@ -2926,9 +3023,14 @@
                         th.style.marginBottom = '8px';
                         th.style.fontStyle = 'italic';
                         th.style.opacity = '0.8';
+                        th.textContent = '🧠 ';
                         m.insertBefore(th, t);
                     }
-                    th.textContent = '🧠 ' + msg;
+                    if (append) {
+                        th.textContent += msg;
+                    } else {
+                        th.textContent = '🧠 ' + msg;
+                    }
                 },
                 removeThinking: () => {
                     let th = m.querySelector('.thinking-block');
@@ -3076,7 +3178,10 @@
         const providerDropdown = document.getElementById('provider-dropdown');
         const providerBadge = document.getElementById('provider-badge');
         const apikeyModal = document.getElementById('apikey-modal');
+        const localModal = document.getElementById('local-modal');
 
+        let localConfig = JSON.parse(localStorage.getItem('ulisse_local_cfg') || '{"baseUrl": "http://localhost:11434/v1", "model": "llama3"}');
+        
         function applyProviderUI(provider) {
             Object.values(PROVIDERS).forEach(p => providerBtn.classList.remove(p.btnClass));
             providerBtn.classList.add(PROVIDERS[provider].btnClass);
@@ -3111,6 +3216,9 @@
                 if (prov === 'apikey') {
                     providerDropdown.classList.remove('open');
                     openApikeyModal();
+                } else if (prov === 'local') {
+                    providerDropdown.classList.remove('open');
+                    openLocalModal();
                 } else {
                     selectProvider(prov);
                 }
@@ -3176,6 +3284,26 @@
             apikeyModal.classList.remove('open');
         }
 
+        // Local Modal logic
+        function openLocalModal() {
+            document.getElementById('local-base-url').value = localConfig.baseUrl || '';
+            document.getElementById('local-model').value = localConfig.model || '';
+            localModal.classList.add('open');
+        }
+
+        function closeLocalModal() {
+            localModal.classList.remove('open');
+        }
+
+        function saveLocalConfig() {
+            const baseUrl = document.getElementById('local-base-url').value.trim();
+            const model = document.getElementById('local-model').value.trim();
+            localConfig = { baseUrl, model };
+            localStorage.setItem('ulisse_local_cfg', JSON.stringify(localConfig));
+            selectProvider('local');
+            closeLocalModal();
+        }
+
         function saveApikeyConfig() {
             const title = document.getElementById('apikey-title').value.trim() || 'Untitled Profile';
             const baseUrl = document.getElementById('apikey-base-url').value.trim();
@@ -3222,6 +3350,7 @@
 
         // Dismiss modal on backdrop click
         apikeyModal.addEventListener('click', e => { if (e.target === apikeyModal) closeApikeyModal(); });
+        localModal.addEventListener('click', e => { if (e.target === localModal) closeLocalModal(); });
 
         // Init UI on load
         applyProviderUI(currentProvider);
@@ -3253,6 +3382,9 @@
                 providerPayload.api_key  = activeApikeyConfig.apiKey;
                 providerPayload.base_url = activeApikeyConfig.baseUrl;
                 providerPayload.model    = activeApikeyConfig.model;
+            } else if (currentProvider === 'local' && localConfig) {
+                providerPayload.base_url = localConfig.baseUrl;
+                providerPayload.model    = localConfig.model;
             }
 
             try {
@@ -3333,7 +3465,7 @@
                                         if (Math.random() > 0.8) fetchGraph();
                                     }
                                 } else if (data.event === 'think' || data.event === 'tool') {
-                                    assistantMsgObj.addThinking(data.message);
+                                    assistantMsgObj.addThinking(data.message, data.append);
                                 } else if (data.event === 'message') {
                                     assistantMsgObj.removeThinking();
                                     fullResponseText += data.text;

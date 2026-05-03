@@ -90,7 +90,12 @@ check_migration()
 
 api_key = os.getenv("DEEPSEEK_API_KEY", "")
 base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-ai_client = OpenAI(api_key=api_key, base_url=base_url)
+
+def get_default_headers(url):
+    # Minimal headers to avoid routing issues on some providers
+    return None
+
+ai_client = OpenAI(api_key=api_key, base_url=base_url, default_headers=get_default_headers(base_url))
 
 # Ulisse Memo cloud endpoint (can be overridden for dev via ULISSE_MEMO_URL)
 ULISSE_MEMO_URL = os.getenv("ULISSE_MEMO_URL", "https://ulisse-memo.onrender.com")
@@ -672,8 +677,9 @@ def chat():
 
     if provider == "memo":
         # Route to Ulisse Memo cloud endpoint via OpenAI compatible client
+        memo_url = f"{ULISSE_MEMO_URL}/v1"
         chat_client = OpenAI(
-            base_url=f"{ULISSE_MEMO_URL}/v1",
+            base_url=memo_url,
             api_key=ULISSE_MEMO_BEARER or "memo-key"
         )
         chat_model = "deepseek-chat" # The proxy enforces the actual model
@@ -681,9 +687,13 @@ def chat():
     elif provider == "apikey" and req_api_key:
         # User-supplied API key and base URL
         try:
+            target_url = req_base_url or "https://api.openai.com/v1"
+            if target_url.endswith('/'):
+                target_url = target_url[:-1]
+
             user_client = OpenAI(
                 api_key=req_api_key,
-                base_url=req_base_url or "https://api.openai.com/v1"
+                base_url=target_url
             )
             chat_client = user_client
             chat_model  = req_model or "gpt-4o"
@@ -691,10 +701,24 @@ def chat():
             return jsonify({"error": f"Invalid API key config: {str(e)}"}), 400
     else:
         # Default: use .env / local model
-        chat_client = ai_client
-        chat_model  = "deepseek-chat"
+        # Check if frontend sent local config overrides
+        local_base_url = data.get("base_url")
+        local_model    = data.get("model")
+        
+        if local_base_url:
+            chat_client = OpenAI(
+                api_key="ollama", # dummy for local
+                base_url=local_base_url
+            )
+            chat_model = local_model or "llama3"
+        else:
+            chat_client = ai_client
+            chat_model  = "deepseek-chat"
 
     # === LLM call (local / apikey paths) ===
+    print(f"DEBUG: Provider={provider}, Model={chat_model}, BaseURL={chat_client.base_url}")
+    print(f"DEBUG: Headers={chat_client.default_headers}")
+
     from flask import Response
     import copy
     
@@ -709,20 +733,51 @@ def chat():
         try:
             # Pass 1: Tool Routing
             yield f"data: {json.dumps({'event': 'think', 'message': 'Analisi in corso...'})}\n\n"
-            response = chat_client.chat.completions.create(
-                model=chat_model,
-                messages=messages,
-                temperature=0.7,
-                max_tokens=4000,
-                tools=extra_tools if extra_tools else None
-            )
+            
+            # Check if we should enable reasoning for OpenRouter/DeepSeek-R1
+            # Note: gpt-oss is V3 and doesn't natively support reasoning_content on all providers.
+            extra_body = {}
+            if "r1" in chat_model.lower():
+                extra_body["reasoning"] = {"enabled": True}
+
+            # Disable tools for OpenRouter :free models as they often don't support them
+            current_tools = extra_tools if extra_tools else None
+            is_openrouter = "openrouter.ai" in str(chat_client.base_url)
+            
+            if is_openrouter and ":free" in chat_model:
+                current_tools = None
+                print(f"DEBUG: Modello :free rilevato su OpenRouter, disabilitazione tools.")
+
+            print(f"DEBUG: extra_body={extra_body}")
+
+            # Use minimal parameters for OpenRouter to avoid routing conflicts
+            if is_openrouter:
+                response = chat_client.chat.completions.create(
+                    model=chat_model,
+                    messages=messages,
+                    tools=current_tools,
+                    extra_body=extra_body if extra_body else None
+                )
+            else:
+                response = chat_client.chat.completions.create(
+                    model=chat_model,
+                    messages=messages,
+                    temperature=0.7,
+                    max_tokens=4000,
+                    tools=current_tools,
+                    extra_body=extra_body if extra_body else None
+                )
             assistant_message = response.choices[0].message
             
             while assistant_message.tool_calls:
                 # Convert to dict and ensure content is handled for API compatibility
-                msg_dict = assistant_message.model_dump()
-                if not msg_dict.get("content"):
-                    msg_dict["content"] = None
+                # Use exclude_none=True because Groq rejects explicit null values for fields like function_call
+                msg_dict = assistant_message.model_dump(exclude_none=True)
+                
+                # Remove fields not supported in requests by some providers (like Groq)
+                for field in ["annotations", "audio", "reasoning", "refusal"]:
+                    msg_dict.pop(field, None)
+
                 messages.append(msg_dict)
 
                 for tool_call in assistant_message.tool_calls:
@@ -745,34 +800,58 @@ def chat():
                     })
                 
                 yield f"data: {json.dumps({'event': 'think', 'message': 'Elaborazione...'})}\n\n"
-                response = chat_client.chat.completions.create(
-                    model=chat_model,
-                    messages=messages,
-                    tools=extra_tools if extra_tools else None
-                )
+                if is_openrouter:
+                    response = chat_client.chat.completions.create(
+                        model=chat_model,
+                        messages=messages,
+                        tools=current_tools,
+                        extra_body=extra_body if extra_body else None
+                    )
+                else:
+                    response = chat_client.chat.completions.create(
+                        model=chat_model,
+                        messages=messages,
+                        tools=current_tools,
+                        extra_body=extra_body if extra_body else None
+                    )
                 assistant_message = response.choices[0].message
             
             # Pass 2: Generazione del testo finale (Stream)
             yield f"data: {json.dumps({'event': 'think', 'message': 'Rispondo...'})}\n\n"
             
-            stream_response = chat_client.chat.completions.create(
-                model=chat_model,
-                messages=messages,
-                temperature=0.7,
-                max_tokens=4000,
-                stream=True
-            )
+            if is_openrouter:
+                stream_response = chat_client.chat.completions.create(
+                    model=chat_model,
+                    messages=messages,
+                    stream=True,
+                    extra_body=extra_body if extra_body else None
+                )
+            else:
+                stream_response = chat_client.chat.completions.create(
+                    model=chat_model,
+                    messages=messages,
+                    temperature=0.7,
+                    max_tokens=4000,
+                    stream=True,
+                    extra_body=extra_body if extra_body else None
+                )
             
             for chunk in stream_response:
                 if not chunk.choices:
                     continue
                 delta = chunk.choices[0].delta
+                
+                # Check for reasoning_content (OpenRouter/DeepSeek-R1)
+                reasoning = getattr(delta, 'reasoning_content', None) or (delta.model_dump().get('reasoning_content') if hasattr(delta, 'model_dump') else None)
+                if reasoning:
+                    yield f"data: {json.dumps({'event': 'think', 'message': reasoning, 'append': True})}\n\n"
+
                 if delta.content:
                     full_assistant_response += delta.content
                     yield f"data: {json.dumps({'event': 'message', 'text': delta.content})}\n\n"
                     
         except Exception as e:
-            print(f"Deepseek API error: {e}")
+            print(f"LLM API error: {e}")
             yield f"data: {json.dumps({'event': 'error', 'message': f'Failed to generate response: {str(e)}'})}\n\n"
             if not full_assistant_response:
                 full_assistant_response = "Errore di generazione."
