@@ -160,8 +160,11 @@ You can add new branches here to support additional providers at the server leve
 
 Ulisse operates using a specialized and delicate system prompt located in `corpus/system_prompt.md`. 
 
-> [!IMPORTANT]
-> **Do not modify the system prompt.** The entire memory architecture (STM and LTM) and the ability to manage the semantic Wiki depend on the specific instructions contained in this file. Altering the prompt may cause the system to fail in its core functions.
+> [!TIP]
+> **Customizing the System Prompt:** You can personalize Ulisse's behavior, but proceed with care:
+> - **Identity and Role:** You are free to completely modify this section to redefine who Ulisse is.
+> - **Personality and Tone:** You can adjust the tone; however, heavy modifications are discouraged if you wish to minimize hallucinations. Within this section, **Adaptability** and **Irony** can be fully customized.
+> - **Technical Instructions:** Modifying the rest of the prompt is **strongly discouraged**. The memory architecture (STM and LTM) and the ability to manage the semantic Wiki rely on specific instructions. Altering them may cause tool execution failures.
 
 ---
 
