@@ -1101,6 +1101,38 @@ def get_memory_nodes():
                 })
                 
     return jsonify({"nodes": nodes, "edges": edges})
+    
+@app.route("/memory/nodes/<node_id>", methods=["POST", "DELETE", "PATCH"])
+def handle_memory_node(node_id):
+    # node_id is the filename stem (e.g., 'Project_Alpha')
+    file_path = wiki_pages_dir / f"{node_id}.md"
+    
+    if request.method == "DELETE":
+        if file_path.exists():
+            file_path.unlink()
+            return jsonify({"status": "deleted"})
+        return jsonify({"error": "Node not found"}), 404
+        
+    elif request.method == "POST":
+        data = request.json
+        new_content = data.get("content")
+        if new_content is not None:
+            file_path.write_text(new_content, encoding="utf-8")
+            return jsonify({"status": "updated"})
+        return jsonify({"error": "No content provided"}), 400
+
+    elif request.method == "PATCH":
+        data = request.json
+        new_title = data.get("title")
+        if new_title:
+            # Generate new safe filename
+            new_id = re.sub(r'[^\w\s-]', '', new_title).strip().replace(' ', '_')
+            new_path = wiki_pages_dir / f"{new_id}.md"
+            if file_path.exists():
+                file_path.rename(new_path)
+                return jsonify({"status": "renamed", "new_id": new_id})
+            return jsonify({"error": "Node not found"}), 404
+        return jsonify({"error": "No title provided"}), 400
 
 
 

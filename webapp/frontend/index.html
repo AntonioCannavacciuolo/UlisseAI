@@ -2319,7 +2319,7 @@
                     </div>
 
                     <div id="mv-concept-only-info" style="display:none">
-                        <div id="mv-concept-body" class="mv-synthetic-text">
+                        <div id="mv-concept-body" class="mv-synthetic-text" contenteditable="true" style="border: 1px solid rgba(255, 255, 255, 0.1); padding: 10px; border-radius: 4px; background: rgba(0,0,0,0.2);">
                             <!-- Concept content -->
                         </div>
                     </div>
@@ -2330,8 +2330,10 @@
                             <button id="mv-delete-btn" class="mv-btn mv-btn-danger">🗑️ DELETE</button>
                         </div>
                         <div id="mv-concept-actions" style="display:none">
+                            <button id="mv-save-wiki-btn" class="mv-btn mv-btn-primary" style="margin-bottom: 10px;">💾 SAVE CHANGES</button>
+                            <button id="mv-delete-wiki-btn" class="mv-btn mv-btn-danger" style="margin-bottom: 10px;">🗑️ DELETE NODE</button>
                             <div style="font-size: 11px; opacity: 0.5; font-style: italic;">
-                                This is a concept synthesized from your long-term memory.
+                                This is a concept from your long-term memory. You can edit and save it.
                             </div>
                         </div>
                     </div>
@@ -3695,9 +3697,42 @@
             }
 
             function init() {
+                const saveWikiBtn = document.getElementById('mv-save-wiki-btn');
+                const deleteWikiBtn = document.getElementById('mv-delete-wiki-btn');
+
                 document.getElementById('memoria-btn').onclick = open;
                 closeBtn.onclick = close;
                 searchInput.oninput = handleSearch;
+
+                saveWikiBtn.onclick = async () => {
+                    if (!selectedNode || selectedNode.type !== 'wiki') return;
+                    const newContent = document.getElementById('mv-concept-body').innerText;
+                    try {
+                        const resp = await fetch(`/memory/nodes/${selectedNode.id}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ content: newContent })
+                        });
+                        if (resp.ok) {
+                            alert('Nodo aggiornato con successo!');
+                            selectedNode.content = newContent;
+                        }
+                    } catch (err) { console.error('Error saving wiki:', err); }
+                };
+
+                deleteWikiBtn.onclick = async () => {
+                    if (!selectedNode || selectedNode.type !== 'wiki' || !confirm('Sei sicuro di voler eliminare permanentemente questo nodo?')) return;
+                    try {
+                        const resp = await fetch(`/memory/nodes/${selectedNode.id}`, { method: 'DELETE' });
+                        if (resp.ok) {
+                            detailContent.style.display = 'none';
+                            detailEmpty.style.display = 'flex';
+                            selectedNode = null;
+                            await loadData();
+                            fetchGraph();
+                        }
+                    } catch (err) { console.error('Error deleting wiki:', err); }
+                };
 
                 // Synthetic memory update logic removed
 
@@ -3888,15 +3923,34 @@
                 };
 
                 detailTitle.onblur = async () => {
-                    if (!selectedNode || selectedNode.type !== 'session') return;
+                    if (!selectedNode) return;
                     const newTitle = detailTitle.textContent.trim();
-                    await fetch(`/sessions/${selectedNode.id}`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ title: newTitle })
-                    });
-                    selectedNode.title = newTitle;
-                    fetchGraph();
+                    if (newTitle === selectedNode.title) return;
+
+                    if (selectedNode.type === 'session') {
+                        await fetch(`/sessions/${selectedNode.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ title: newTitle })
+                        });
+                        selectedNode.title = newTitle;
+                        fetchGraph();
+                    } else if (selectedNode.type === 'wiki') {
+                        try {
+                            const resp = await fetch(`/memory/nodes/${selectedNode.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ title: newTitle })
+                            });
+                            const data = await resp.json();
+                            if (resp.ok) {
+                                selectedNode.title = newTitle;
+                                selectedNode.id = data.new_id;
+                                await loadData();
+                                fetchGraph();
+                            }
+                        } catch (err) { console.error('Error renaming wiki:', err); }
+                    }
                 };
             }
 
@@ -4197,6 +4251,7 @@
                         `Pagina Wiki · Ultima modifica: ${new Date(node.updated_at).toLocaleString()}` :
                         `Concetto sintetizzato dalla memoria a lungo termine`;
                     document.getElementById('mv-concept-body').textContent = node.content;
+                    document.getElementById('mv-concept-body').contentEditable = node.type === 'wiki' ? "true" : "false";
                 }
 
             }
