@@ -6,7 +6,7 @@ from agno.agent import Agent
 from agno.db.sqlite import SqliteDb
 from agno.os import AgentOS
 from agno.tools.workspace import Workspace
-from agno.models.deepseek import DeepSeek
+from agno.models.openai import OpenAIChat
 from agno.tools.websearch import WebSearchTools
 from agno.tools.browserbase import BrowserbaseTools
 from agno.tools.csv_toolkit import CsvTools
@@ -84,10 +84,6 @@ Strictly follow the schema provided below for Wiki management.
 """
 
 # --- Configurazione Toolkits di Agno ---
-# Importa qui i toolkit quando richiesto, ad esempio:
-# from agno.tools.duckduckgo import DuckDuckGo
-# from agno.tools.python import PythonTools
-
 agno_toolkits = [
     WebSearchTools(),      # Abilita la ricerca web (Google, DuckDuckGo, ecc.)
     CsvTools(),            # Abilita la lettura e l'interrogazione di file CSV
@@ -97,7 +93,7 @@ agno_toolkits = [
     LocalFileSystemTools(target_directory=str(project_root)), # Abilita la scrittura organizzata di file
 ]
 
-# Browserbase è opzionale: si attiva solo se le chiavi sono configurate
+# Browserbase è opzionale
 browserbase_api_key = os.getenv("BROWSERBASE_API_KEY")
 browserbase_project_id = os.getenv("BROWSERBASE_PROJECT_ID")
 if browserbase_api_key and browserbase_project_id:
@@ -107,44 +103,54 @@ if browserbase_api_key and browserbase_project_id:
             project_id=browserbase_project_id
         )
     )
-    print("✅ BrowserbaseTools attivato (chiavi trovate)")
-else:
-    print("⚠️ BrowserbaseTools NON attivato: BROWSERBASE_API_KEY e/o BROWSERBASE_PROJECT_ID mancanti. Browser automation non disponibile.")
-
 
 base_tools = [
     wiki_read_page,
     wiki_write_page,
     wiki_list_pages,
-    # Il tool Workspace permette all'agente di leggere e cercare file nel progetto locale
     Workspace(str(project_root), allowed=["read", "list", "search", "write", "edit", "delete", "shell"])
 ]
 
 # Combina tutti i tools
 all_tools = base_tools + agno_toolkits
 
-# Inizializza l'agente Agno
-# Utilizziamo OpenAIChat configurato per DeepSeek se necessario, oppure il default openai
-ulisse_agent = Agent(
-    name="Ulisse",
-    model=DeepSeek(
-        id="deepseek-chat",
-        api_key=os.getenv("DEEPSEEK_API_KEY", ""),
-        base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-    ),
-    description="Ulisse AI - L'assistente con memoria a lungo termine.",
-    instructions=agent_instructions,
-    tools=all_tools,
-    enable_agentic_memory=True,  # Memoria persistente tra sessioni
-    add_history_to_context=True,
-    num_history_runs=5,
-)
+def get_ulisse_agent(model_id=None, api_key=None, base_url=None):
+    """
+    Returns an instance of the Ulisse (Agno) agent configured with the specified model.
+    If parameters are missing, it defaults to the DeepSeek configuration in .env.
+    """
+    # Default values from environment
+    default_model = "deepseek-chat"
+    default_key = os.getenv("DEEPSEEK_API_KEY", "")
+    default_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+
+    m_id = model_id or default_model
+    m_key = api_key or default_key
+    m_url = base_url or default_url
+
+    # In Agno, OpenAIChat is a generic provider for OpenAI-compatible APIs
+    return Agent(
+        name="Ulisse",
+        model=OpenAIChat(
+            id=m_id,
+            api_key=m_key,
+            base_url=m_url
+        ),
+        description="Ulisse AI - L'assistente con memoria a lungo termine.",
+        instructions=agent_instructions,
+        tools=all_tools,
+        enable_agentic_memory=True,
+        add_history_to_context=True,
+        num_history_runs=5,
+    )
+
+# Default agent instance
+ulisse_agent = get_ulisse_agent()
 
 # ==========================================
 # 3. Avvia AgentOS (Solo se eseguito direttamente)
 # ==========================================
 if __name__ == "__main__":
-    # AgentOS espone l'agente tramite API FastAPI compatibili
     db_path = corpus_dir / "agno_sessions.db"
     agent_os = AgentOS(
         agents=[ulisse_agent],
@@ -153,5 +159,3 @@ if __name__ == "__main__":
     )
 
     app = agent_os.get_app()
-    # Per eseguire questo file usa:
-    # fastapi dev webapp/backend/ulisse_agno.py

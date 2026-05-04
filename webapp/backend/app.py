@@ -21,6 +21,9 @@ from chromadb.utils import embedding_functions
 from openai import OpenAI
 import uuid
 from werkzeug.utils import secure_filename
+from threading import local
+
+agno_context = local()
 
 # --- Optional file-parsing imports ---
 try:
@@ -346,10 +349,20 @@ def delegate_to_agno_agent(args):
         if not task:
             return "No task provided."
         
-        from webapp.backend.ulisse_agno import ulisse_agent
+        from webapp.backend.ulisse_agno import get_ulisse_agent
         
-        # Run the Agno agent synchronously
-        response = ulisse_agent.run(task)
+        # Recupera la configurazione della sessione dal thread-local context
+        config = getattr(agno_context, 'config', {})
+        
+        # Inizializza l'agente con il modello scelto dall'utente
+        agent = get_ulisse_agent(
+            model_id=config.get("model"),
+            api_key=config.get("api_key"),
+            base_url=config.get("base_url")
+        )
+        
+        # Esegui l'agente Agno in modo sincrono
+        response = agent.run(task)
         if hasattr(response, "content"):
             return f"Agno Agent Response:\n{response.content}"
         return f"Agno Agent Response:\n{str(response)}"
@@ -724,6 +737,14 @@ def chat():
     
     def generate():
         nonlocal session_data, messages, sources
+        
+        # Salva la configurazione del modello nel contesto del thread corrente
+        # così che i tool handler (come delegate_to_agno_agent) possano accedervi.
+        agno_context.config = {
+            "model": chat_model,
+            "api_key": chat_client.api_key,
+            "base_url": str(chat_client.base_url)
+        }
         
         # Invia l'inizio della sessione
         yield f"data: {json.dumps({'event': 'session', 'session_id': session_id, 'session_title': session_data.get('title', 'Nuova Chat'), 'sources': sources})}\n\n"
