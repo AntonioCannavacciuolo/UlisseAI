@@ -54,7 +54,7 @@ A powerful autonomous engine for complex tasks:
 - DeepSeek API or any OpenAI-compatible provider
 - Semantic Wiki (Markdown-based LTM)
 - Obsidian-compatible knowledge graph
-- Flask + Vanilla JS Frontend
+- Flask backend + vanilla JS frontend (single-page application)
 
 ---
 
@@ -70,12 +70,19 @@ Chat Interaction ↔ AI Tool Calling ↔ Semantic Wiki (LTM)
 
 ## Installation
 
-Requirements:
+### Prerequisites
 - Python 3.11+
 - An LLM API key **OR** Ollama/LM Studio running locally **OR** use Ulisse Memo v1 (no key needed)
 
+### ⚠️ First-time setup notes
+On the very first launch, the system will automatically download:
+- **`all-MiniLM-L6-v2`** (~80 MB) — a Sentence-Transformers model used for generating embeddings for the RAG memory.
+- Additional ChromaDB internal dependencies.
+
+These downloads happen once and are cached locally (in `./hf_cache` and `./vectordb`). Subsequent startups will be faster.
+
 ```bash
-git clone https://github.com/AntonioCannavacciuolo/UlisseAI.git
+git clone https://github.com/FridaAlma/UlisseAI.git
 cd UlisseAI
 pip install -r requirements.txt
 ```
