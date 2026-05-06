@@ -22,8 +22,27 @@ from openai import OpenAI
 import uuid
 from werkzeug.utils import secure_filename
 from threading import local
+from functools import wraps
+import time
 
 agno_context = local()
+
+# Simple Rate Limiter
+RATE_LIMITS = {}
+def rate_limit(limit_seconds=1.0):
+    def decorator(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            ip = request.remote_addr or "127.0.0.1"
+            now = time.time()
+            key = (f.__name__, ip)
+            last_time = RATE_LIMITS.get(key, 0)
+            if now - last_time < limit_seconds:
+                return jsonify({"error": "Too many requests"}), 429
+            RATE_LIMITS[key] = now
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
 
 # --- Optional file-parsing imports ---
 try:
@@ -80,6 +99,8 @@ wiki_raw_dir.mkdir(parents=True, exist_ok=True)
 # Auto-migration if sessions folder is empty
 def check_migration():
     if not any(sessions_dir.iterdir()):
+        if not new_conversations_file.exists() or new_conversations_file.stat().st_size == 0:
+            return
         print("Sessions folder is empty. Running migration...")
         try:
             from scripts.migrate_to_sessions import migrate
@@ -98,7 +119,7 @@ def get_default_headers(url):
     # Minimal headers to avoid routing issues on some providers
     return None
 
-ai_client = OpenAI(api_key=api_key, base_url=base_url, default_headers=get_default_headers(base_url))
+ai_client = OpenAI(api_key=api_key, base_url=base_url)
 
 # Ulisse Memo cloud endpoint (can be overridden for dev via ULISSE_MEMO_URL)
 ULISSE_MEMO_URL = os.getenv("ULISSE_MEMO_URL", "https://ulisse-memo.onrender.com")
@@ -471,6 +492,7 @@ def _extract_text_from_file(file_storage) -> str:
 
 
 @app.route("/extract_file", methods=["POST"])
+@rate_limit(1.0)
 def extract_file():
     """Upload a file and return its extracted text as JSON."""
     if "file" not in request.files:
@@ -514,6 +536,7 @@ def stats():
     })
 
 @app.route("/save_conversation", methods=["POST"])
+@rate_limit(1.0)
 def save_conversation():
     data = request.json
     if not data:
@@ -527,9 +550,10 @@ def save_conversation():
         return jsonify({"error": str(e)}), 500
 
 def get_session_path(session_id):
-    return sessions_dir / f"{session_id}.json"
+    return sessions_dir / f"{secure_filename(str(session_id))}.json"
 
 @app.route("/chat", methods=["POST"])
+@rate_limit(1.0)
 def chat():
     data = request.json
     user_message = data.get("message", "")
@@ -590,17 +614,11 @@ def chat():
                 retrieved_metas = results["metadatas"][0]
                 retrieved_dists = (results.get("distances") or [[]])[0]
                 
-                # Filter chunks where distance <= 0.8
+                # Filter chunks with reasonable distance (<= 1.0 for cosine similarity > 0)
                 filtered = []
                 for doc, meta, dist in zip(retrieved_docs, retrieved_metas, retrieved_dists):
-                    if dist <= 0.8:
+                    if dist <= 1.0:
                         filtered.append((doc, meta))
-                
-                # If less than 3 chunks pass the threshold, use the top 3 anyway
-                if len(filtered) < 3:
-                    filtered = []
-                    for i in range(min(3, len(retrieved_docs))):
-                        filtered.append((retrieved_docs[i], retrieved_metas[i]))
                 
                 print(f"Chunks retrieved: {len(filtered)}/{len(retrieved_docs)} passed threshold")
                 
@@ -699,6 +717,8 @@ def chat():
 
     elif provider == "apikey" and req_api_key:
         # User-supplied API key and base URL
+        if not request.is_secure and not request.host.startswith(("127.0.0.1", "localhost")):
+            return jsonify({"error": "Insecure connection. API key allows only HTTPS or localhost."}), 400
         try:
             target_url = req_base_url or "https://api.openai.com/v1"
             if target_url.endswith('/'):
@@ -758,16 +778,12 @@ def chat():
             # Check if we should enable reasoning for OpenRouter/DeepSeek-R1
             # Note: gpt-oss is V3 and doesn't natively support reasoning_content on all providers.
             extra_body = {}
-            if "r1" in chat_model.lower():
+            if "r1" in chat_model.lower() and ("openrouter" in str(chat_client.base_url).lower() or provider == "memo"):
                 extra_body["reasoning"] = {"enabled": True}
 
-            # Disable tools for OpenRouter :free models as they often don't support them
+            # Tools are kept enabled for OpenRouter as many free models support them
             current_tools = extra_tools if extra_tools else None
             is_openrouter = "openrouter.ai" in str(chat_client.base_url)
-            
-            if is_openrouter and ":free" in chat_model:
-                current_tools = None
-                print(f"DEBUG: Modello :free rilevato su OpenRouter, disabilitazione tools.")
 
             print(f"DEBUG: extra_body={extra_body}")
 
@@ -780,14 +796,25 @@ def chat():
                     extra_body=extra_body if extra_body else None
                 )
             else:
-                response = chat_client.chat.completions.create(
-                    model=chat_model,
-                    messages=messages,
-                    temperature=0.7,
-                    max_tokens=4000,
-                    tools=current_tools,
-                    extra_body=extra_body if extra_body else None
-                )
+                try:
+                    response = chat_client.chat.completions.create(
+                        model=chat_model,
+                        messages=messages,
+                        temperature=0.7,
+                        max_tokens=4000,
+                        tools=current_tools,
+                        extra_body=extra_body if extra_body else None
+                    )
+                except Exception as e:
+                    print(f"First pass API Error: {e}, retrying with max_tokens=2048")
+                    response = chat_client.chat.completions.create(
+                        model=chat_model,
+                        messages=messages,
+                        temperature=0.7,
+                        max_tokens=2048,
+                        tools=current_tools,
+                        extra_body=extra_body if extra_body else None
+                    )
             assistant_message = response.choices[0].message
             
             while assistant_message.tool_calls:
@@ -848,14 +875,25 @@ def chat():
                     extra_body=extra_body if extra_body else None
                 )
             else:
-                stream_response = chat_client.chat.completions.create(
-                    model=chat_model,
-                    messages=messages,
-                    temperature=0.7,
-                    max_tokens=4000,
-                    stream=True,
-                    extra_body=extra_body if extra_body else None
-                )
+                try:
+                    stream_response = chat_client.chat.completions.create(
+                        model=chat_model,
+                        messages=messages,
+                        temperature=0.7,
+                        max_tokens=4000,
+                        stream=True,
+                        extra_body=extra_body if extra_body else None
+                    )
+                except Exception as e:
+                    print(f"Stream API Error: {e}, retrying with max_tokens=2048")
+                    stream_response = chat_client.chat.completions.create(
+                        model=chat_model,
+                        messages=messages,
+                        temperature=0.7,
+                        max_tokens=2048,
+                        stream=True,
+                        extra_body=extra_body if extra_body else None
+                    )
             
             for chunk in stream_response:
                 if not chunk.choices:
@@ -895,8 +933,8 @@ def chat():
                     {"role": "system", "content": "Generate a synthetic title (max 6 words) for this conversation between Ulisse and Toni. Respond ONLY with the title."},
                     {"role": "user", "content": f"Initial messages:\n" + "\n".join([f"{m['role']}: {m['content'][:100]}" for m in chat_history[:4]]) + f"\nuser: {user_message}"}
                 ]
-                t_resp = ai_client.chat.completions.create(
-                    model="deepseek-chat",
+                t_resp = chat_client.chat.completions.create(
+                    model=chat_model,
                     messages=title_prompt,
                     max_tokens=20
                 )
