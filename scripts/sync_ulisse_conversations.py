@@ -94,14 +94,18 @@ def main():
                 else:
                     title = " ".join(w.capitalize() for w in words[:6])
 
+            session_id = data.get("session_id")
+            
             metadata = {
-                "title": title,
-                "date": timestamp,
-                "chunk_index": chunk_idx
+                "title": str(title) if title else "Untitled",
+                "date": str(timestamp) if timestamp else "Unknown",
+                "chunk_index": int(chunk_idx)
             }
+            if session_id:
+                metadata["session_id"] = str(session_id)
             
             # Distinctive ID prefix
-            chunk_id = f"chunk_ulisse_{chunk_idx}"
+            chunk_id = data.get("chunk_id") or f"chunk_ulisse_{chunk_idx}"
             
             docs_to_add.append(document)
             metadatas_to_add.append(metadata)
@@ -117,7 +121,7 @@ def main():
     if docs_to_add:
         print(f"Embedding and adding {len(docs_to_add)} new chunks to ChromaDB...")
         try:
-            collection.add(
+            collection.upsert(
                 documents=docs_to_add,
                 metadatas=metadatas_to_add,
                 ids=ids_to_add

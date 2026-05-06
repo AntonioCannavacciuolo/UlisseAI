@@ -7,13 +7,41 @@ from agno.db.sqlite import SqliteDb
 from agno.os import AgentOS
 from agno.tools.workspace import Workspace
 from agno.models.openai import OpenAIChat
-from agno.tools.websearch import WebSearchTools
-from agno.tools.browserbase import BrowserbaseTools
-from agno.tools.csv_toolkit import CsvTools
-from agno.tools.file import FileTools
-from agno.tools.python import PythonTools
-from agno.tools.shell import ShellTools
-from agno.tools.local_file_system import LocalFileSystemTools
+try:
+    from agno.tools.websearch import WebSearchTools
+except ImportError:
+    WebSearchTools = None
+
+try:
+    from agno.tools.browserbase import BrowserbaseTools
+except ImportError:
+    BrowserbaseTools = None
+
+try:
+    from agno.tools.csv_toolkit import CsvTools
+except ImportError:
+    CsvTools = None
+
+try:
+    from agno.tools.file import FileTools
+except ImportError:
+    FileTools = None
+
+try:
+    from agno.tools.python import PythonTools
+except ImportError:
+    PythonTools = None
+
+try:
+    from agno.tools.shell import ShellTools
+except ImportError:
+    ShellTools = None
+
+try:
+    from agno.tools.local_file_system import LocalFileSystemTools
+except ImportError:
+    LocalFileSystemTools = None
+
 
 # Carica le variabili d'ambiente
 load_dotenv()
@@ -84,19 +112,26 @@ Strictly follow the schema provided below for Wiki management.
 """
 
 # --- Configurazione Toolkits di Agno ---
-agno_toolkits = [
-    WebSearchTools(),      # Abilita la ricerca web (Google, DuckDuckGo, ecc.)
-    CsvTools(),            # Abilita la lettura e l'interrogazione di file CSV
-    FileTools(base_dir=project_root),  # Abilita la gestione file (lettura/scrittura)
-    PythonTools(base_dir=project_root), # Abilita l'esecuzione di codice Python
-    ShellTools(base_dir=project_root),  # Abilita l'esecuzione di comandi shell
-    LocalFileSystemTools(target_directory=str(project_root)), # Abilita la scrittura organizzata di file
-]
+agno_toolkits = []
+
+if WebSearchTools:
+    agno_toolkits.append(WebSearchTools())
+if CsvTools:
+    agno_toolkits.append(CsvTools())
+if FileTools:
+    agno_toolkits.append(FileTools(base_dir=project_root))
+if PythonTools:
+    agno_toolkits.append(PythonTools(base_dir=project_root))
+if ShellTools:
+    agno_toolkits.append(ShellTools(base_dir=project_root))
+if LocalFileSystemTools:
+    agno_toolkits.append(LocalFileSystemTools(target_directory=str(project_root)))
+
 
 # Browserbase è opzionale
 browserbase_api_key = os.getenv("BROWSERBASE_API_KEY")
 browserbase_project_id = os.getenv("BROWSERBASE_PROJECT_ID")
-if browserbase_api_key and browserbase_project_id:
+if BrowserbaseTools and browserbase_api_key and browserbase_project_id:
     agno_toolkits.append(
         BrowserbaseTools(
             api_key=browserbase_api_key,

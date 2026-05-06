@@ -23,6 +23,38 @@ import uuid
 from werkzeug.utils import secure_filename
 from functools import wraps
 import time
+import threading
+import ipaddress
+import socket
+from urllib.parse import urlparse
+
+jsonl_lock = threading.Lock()
+
+PRIVATE_NETWORKS = [
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("169.254.0.0/16"),
+    ipaddress.ip_network("0.0.0.0/8"),
+    ipaddress.ip_network("::1/128"),
+    ipaddress.ip_network("fc00::/7"),
+]
+
+def is_private_url(url: str) -> bool:
+    hostname = urlparse(url).hostname
+    if not hostname:
+        return True  # reject invalid
+    try:
+        ip = ipaddress.ip_address(hostname)
+    except ValueError:
+        # It's a hostname — resolve it
+        try:
+            ip = ipaddress.ip_address(socket.gethostbyname(hostname))
+        except (socket.gaierror, ValueError):
+            return True  # reject if can't resolve
+    return any(ip in net for net in PRIVATE_NETWORKS)
+
 
 # Simple Rate Limiter
 RATE_LIMITS = {}
@@ -209,7 +241,9 @@ def wiki_read_page(args):
         data = json.loads(args)
         title = data.get("title", "").strip()
         safe_title = re.sub(r'[^\w\s-]', '', title).strip().replace(' ', '_')
-        path = wiki_pages_dir / f"{safe_title}.md"
+        path = (wiki_pages_dir / f"{safe_title}.md").resolve()
+        if not str(path).startswith(str(wiki_pages_dir.resolve())):
+            return "Error: Access denied (outside of wiki pages directory)."
         if path.exists():
             return f"Content of [[{title}]]:\n\n" + path.read_text(encoding="utf-8")
         return f"The page [[{title}]] does not exist yet."
@@ -344,8 +378,25 @@ def native_read_file(args):
         # Verifica di sicurezza basica
         if not str(path).startswith(str(project_root)):
             return "Error: Access denied (outside of project root)."
+            
+        # Security checks
+        ext = path.suffix.lower()
+        if ext in ['.key', '.pem', '.pfx', '.p12', '.crt', '.env']:
+            return "Error: Access denied (restricted extension)."
+        
+        restricted_names = ['credentials', 'secrets', 'token', 'id_rsa', 'config.json', '.git-credentials', '.npmrc', 'secrets.json', 'credentials.yml', 'token.txt']
+        if path.name.lower() in restricted_names:
+            return "Error: Access denied (restricted filename)."
+            
+        restricted_dirs = ['.git', '.ssh', '.aws', '.config']
+        for part in path.parts:
+            if part in restricted_dirs:
+                return "Error: Access denied (restricted directory)."
+                
         if path.exists() and path.is_file():
-            return path.read_text(encoding="utf-8")
+            if path.stat().st_size > 1024 * 1024:
+                return "Error: File too large (max 1MB)."
+            return path.read_text(encoding="utf-8", errors="replace")
         return f"File not found: {filepath}"
     except Exception as e:
         return f"Read error: {str(e)}"
@@ -588,8 +639,9 @@ def save_conversation():
         return jsonify({"error": "No data provided"}), 400
         
     try:
-        with open(new_conversations_file, "a", encoding="utf-8") as f:
-            f.write(json.dumps(data, ensure_ascii=False) + "\n")
+        with jsonl_lock:
+            with open(new_conversations_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(data, ensure_ascii=False) + "\n")
         return jsonify({"status": "success", "message": "Conversation saved."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -794,12 +846,16 @@ def chat():
 
     if provider == "apikey" and req_api_key:
         # User-supplied API key and base URL
-        if not request.is_secure and not request.host.startswith(("127.0.0.1", "localhost")):
-            return jsonify({"error": "Insecure connection. API key allows only HTTPS or localhost."}), 400
         try:
             target_url = req_base_url or "https://api.openai.com/v1"
             if target_url.endswith('/'):
                 target_url = target_url[:-1]
+                
+            if is_private_url(target_url):
+                return jsonify({"error": "Invalid base_url: private or restricted IP."}), 400
+                
+            if not target_url.startswith("https://") and not request.host.startswith(("127.0.0.1", "localhost")):
+                return jsonify({"error": "Insecure connection. API key allows only HTTPS or localhost."}), 400
 
             user_client = OpenAI(
                 api_key=req_api_key,
@@ -917,6 +973,12 @@ def chat():
             while has_tools:
                 # Convert to dict and ensure content is handled for API compatibility
                 msg_dict = assistant_message.model_dump(exclude_none=True)
+                
+                # Clean leak from content before adding to history
+                if msg_dict.get("content"):
+                    msg_dict["content"] = _fn_leak_re.sub('', msg_dict["content"]).strip()
+                    if not msg_dict["content"]:
+                        msg_dict["content"] = None
                 
                 # Remove fields not supported in requests by some providers
                 for field in ["annotations", "audio", "reasoning", "refusal"]:
@@ -1046,28 +1108,30 @@ def chat():
             print(f"Error saving session: {e}")
 
         # Save to legacy jsonl for RAG
+        chunk_id = f"chunk_{session_id}_{len(session_data['messages']) // 2}"
         exchange = {
             "session_id": session_id,
             "title": session_data["title"],
             "timestamp": timestamp,
             "user_message": user_message,
             "assistant_response": full_assistant_response,
-            "sources": sources
+            "sources": sources,
+            "chunk_id": chunk_id
         }
         try:
-            with open(new_conversations_file, "a", encoding="utf-8") as f:
-                f.write(json.dumps(exchange, ensure_ascii=False) + "\n")
+            with jsonl_lock:
+                with open(new_conversations_file, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(exchange, ensure_ascii=False) + "\n")
                 
             # Real-time embedding into ChromaDB (Short-term memory)
             if chroma_status and collection is not None:
                 document = f"User: {user_message}\nAssistant: {full_assistant_response}"
-                chunk_id = f"chunk_{session_id}_{len(session_data['messages']) // 2}"
-                collection.add(
+                collection.upsert(
                     documents=[document],
                     metadatas=[{
-                        "session_id": session_id,
-                        "title": session_data["title"],
-                        "date": timestamp,
+                        "session_id": str(session_id),
+                        "title": str(session_data["title"]) if session_data["title"] else "Untitled",
+                        "date": str(timestamp),
                         "type": "conversation"
                     }],
                     ids=[chunk_id]

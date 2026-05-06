@@ -1,5 +1,6 @@
 import os
 import json
+import shutil
 import re
 from collections import Counter
 from dotenv import load_dotenv
@@ -141,6 +142,7 @@ if os.path.exists(vault_path):
                     concept_to_convs[concept].add(conv_title)
                 
         if modified:
+            shutil.copy2(filepath, filepath + ".bak")
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(content)
 

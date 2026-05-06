@@ -1,5 +1,5 @@
-chromadb
-sentence-transformers
+chromadb==1.4.1
+sentence-transformers==5.2.2
 python-dotenv
 flask
 flask-cors
@@ -17,3 +17,4 @@ ddgs
 browserbase
 playwright
 duckdb
+Werkzeug==3.1.3
