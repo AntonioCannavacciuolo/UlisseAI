@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ULISSE BRAIN</title>
+    <title>ULISSE MEMO</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -2124,7 +2124,7 @@
                         Memory</button>
                     <button id="new-chat-btn">🗑️ New chat</button>
                 </div>
-                ULISSE BRAIN
+                ULISSE MEMO
             </div>
             <div class="chat-messages" id="chat-messages">
                 <div class="empty-state" id="empty-state">
@@ -2168,13 +2168,7 @@
                                         <span class="prov-desc">OpenAI, DeepSeek, Anthropic…</span>
                                     </span>
                                 </button>
-                                <button class="provider-option" data-provider="memo">
-                                    <span class="prov-icon">🔮</span>
-                                    <span class="prov-label">
-                                        <span class="prov-name">Ulisse Memo v1</span>
-                                        <span class="prov-desc">Cloud model — ulisse-memo.onrender.com</span>
-                                    </span>
-                                </button>
+
                             </div>
                         </div>
                         <button id="send-btn" title="Send">
@@ -3147,8 +3141,7 @@
         // ================================================================
         const PROVIDERS = {
             local: { label: 'LLM Locale', badgeClass: 'local', btnClass: 'active-local' },
-            apikey: { label: 'API Key', badgeClass: 'apikey', btnClass: 'active-apikey' },
-            memo: { label: 'Ulisse Memo v1', badgeClass: 'memo', btnClass: 'active-memo' }
+            apikey: { label: 'API Key', badgeClass: 'apikey', btnClass: 'active-apikey' }
         };
 
         let currentProvider = localStorage.getItem('ulisse_provider') || 'local';
@@ -3188,7 +3181,7 @@
             Object.values(PROVIDERS).forEach(p => providerBtn.classList.remove(p.btnClass));
             providerBtn.classList.add(PROVIDERS[provider].btnClass);
             providerBadge.className = 'provider-badge';
-            if (provider === 'memo') providerBadge.classList.add('memo');
+
             if (provider === 'apikey') providerBadge.classList.add('apikey');
             document.querySelectorAll('.provider-option').forEach(opt => {
                 opt.classList.toggle('selected', opt.dataset.provider === provider);
@@ -3210,11 +3203,6 @@
         document.querySelectorAll('.provider-option').forEach(opt => {
             opt.addEventListener('click', () => {
                 const prov = opt.dataset.provider;
-                if (prov === 'memo') {
-                    alert('Ulisse Memo non è al momento disponibile per modifiche. L\'accesso è temporaneamente sospeso.');
-                    providerDropdown.classList.remove('open');
-                    return;
-                }
                 if (prov === 'apikey') {
                     providerDropdown.classList.remove('open');
                     openApikeyModal();

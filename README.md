@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/assets/banner.png" alt="Ulisse Brain Banner" width="100%"/>
+  <img src="docs/assets/banner.png" alt="Ulisse Memo Banner" width="100%"/>
 </p>
 
-<h1 align="center">🧠 Ulisse Brain</h1>
+<h1 align="center">🧠 Ulisse Memo</h1>
 
 <p align="center">
   <strong>A persistent memory infrastructure for LLMs.<br/>Installable. Customizable. Private.</strong>
@@ -28,24 +28,16 @@
 
 Ulisse is a system that allows a language model to **remember what you told it**, even across different sessions. It's an architecture that turns a generic LLM into an entity with continuous memory, capable of updating its own knowledge as it talks to you.
 
-<table>
-<tr>
-<td width="33%" align="center">
+<td width="50%" align="center">
 
 ### 💻 Local Models
 Ollama, LM Studio, or any<br/>OpenAI-compatible server
 
 </td>
-<td width="33%" align="center">
+<td width="50%" align="center">
 
 ### 🔑 Remote APIs
 OpenAI, DeepSeek, Claude,<br/>or any provider with an API key
-
-</td>
-<td width="33%" align="center">
-
-### 🔮 Ulisse Memo v1
-Fine-tuned cloud model<br/><sub>⚠️ Temporarily suspended</sub>
 
 </td>
 </tr>
@@ -139,7 +131,7 @@ Ulisse is not just a chatbot — it is an **agentic system** equipped with a spe
 ### Prerequisites
 
 - **Python 3.11+**
-- An LLM API key **OR** Ollama/LM Studio running locally **OR** Ulisse Memo v1 *(currently offline)*
+- An LLM API key **OR** Ollama/LM Studio running locally
 
 > [!NOTE]
 > **First-time setup:** On the first launch, the system will automatically download **`all-MiniLM-L6-v2`** (~80 MB) for RAG embeddings and ChromaDB dependencies. These are cached locally in `./hf_cache` and `./vectordb`. Subsequent startups will be faster.
@@ -185,7 +177,7 @@ In the chat interface, next to the **Send** button you'll find a 🌐 **network 
 |:---|:---:|:---|
 | **LLM Locale** | 💻 | Connects to a local model (Ollama, LM Studio, etc.). Uses `DEEPSEEK_BASE_URL` / `DEEPSEEK_API_KEY` from `.env` |
 | **API Key** | 🔑 | Enter any provider's Base URL, API Key, and model name directly from the UI. Saved in `localStorage` |
-| **Ulisse Memo v1** | 🔮 | ~~Cloud fine-tuned model~~ — *Currently offline for maintenance* |
+
 
 > Your choice is **persisted in the browser** across reloads.
 
@@ -209,12 +201,7 @@ Then in `webapp/backend/app.py`, find and change:
 chat_model = "deepseek-chat"  # → "gpt-4o", "llama3", "qwen2.5:7b", etc.
 ```
 
-#### Option B — Ulisse Memo v1 endpoint
-
-> [!NOTE]
-> **Maintenance Notice:** The Ulisse Memo v1 endpoint is currently suspended. Please use a Local Model or a custom API Key in the meantime.
-
-#### Option C — Fully custom provider in code
+#### Option B — Fully custom provider in code
 
 In `webapp/backend/app.py`, locate the provider routing block (~line 408):
 

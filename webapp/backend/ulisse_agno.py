@@ -134,7 +134,14 @@ def get_ulisse_agent(model_id=None, api_key=None, base_url=None):
         model=OpenAIChat(
             id=m_id,
             api_key=m_key,
-            base_url=m_url
+            base_url=m_url,
+            role_map={
+                "system": "system",
+                "user": "user",
+                "assistant": "assistant",
+                "tool": "tool",
+                "model": "assistant"
+            }
         ),
         description="Ulisse AI - L'assistente con memoria a lungo termine.",
         instructions=agent_instructions,
@@ -142,6 +149,7 @@ def get_ulisse_agent(model_id=None, api_key=None, base_url=None):
         enable_agentic_memory=True,
         add_history_to_context=True,
         num_history_runs=5,
+        system_message_role="system",
     )
 
 # Default agent instance

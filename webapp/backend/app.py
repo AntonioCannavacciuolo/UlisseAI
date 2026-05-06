@@ -41,6 +41,55 @@ def rate_limit(limit_seconds=1.0):
         return wrapped
     return decorator
 
+# ---------------------------------------------------------------------------
+# Token estimation & context budget
+# ---------------------------------------------------------------------------
+# Conservative budget for the TOTAL prompt (system + history + user message).
+# Leaves headroom for the model's response tokens.
+# Small models (e.g. Groq llama-3.1-8b-instant) have limits as low as 6 000 TPM,
+# so we aim for ~3 500 input tokens to leave ~2 500 for the response + overhead.
+MAX_CONTEXT_TOKENS = int(os.getenv("ULISSE_MAX_CONTEXT_TOKENS", "3500"))
+
+def estimate_tokens(text: str) -> int:
+    """Rough token estimate: ~1.33 tokens per whitespace-delimited word."""
+    if not text:
+        return 0
+    return int(len(text.split()) * 1.33)
+
+def _parse_dsml_tool_calls(content: str):
+    """Parses DeepSeek's leaked <｜｜DSML｜｜tool_calls> format into OpenAI tool call dicts."""
+    import re, json, uuid
+    parsed = []
+    if not content or "<｜｜DSML｜｜tool_calls>" not in content:
+        return parsed, content
+        
+    dsml_match = re.search(r'<｜｜DSML｜｜tool_calls>(.*?)</｜｜DSML｜｜tool_calls>', content, re.DOTALL)
+    if not dsml_match:
+        return parsed, content
+    
+    tool_calls_str = dsml_match.group(1)
+    invokes = re.finditer(r'<｜｜DSML｜｜invoke name="([^"]+)">(.*?)</｜｜DSML｜｜invoke>', tool_calls_str, re.DOTALL)
+    for invoke in invokes:
+        fn_name = invoke.group(1)
+        params_str = invoke.group(2)
+        args_dict = {}
+        
+        params = re.finditer(r'<｜｜DSML｜｜parameter name="([^"]+)"[^>]*>(.*?)</｜｜DSML｜｜parameter>', params_str, re.DOTALL)
+        for param in params:
+            args_dict[param.group(1)] = param.group(2).strip()
+            
+        parsed.append({
+            "id": f"call_dsml_{uuid.uuid4().hex[:8]}",
+            "type": "function",
+            "function": {
+                "name": fn_name,
+                "arguments": json.dumps(args_dict)
+            }
+        })
+    
+    clean_content = content.replace(dsml_match.group(0), "").strip()
+    return parsed, clean_content
+
 # --- Optional file-parsing imports ---
 try:
     import fitz  # PyMuPDF
@@ -118,9 +167,7 @@ def get_default_headers(url):
 
 ai_client = OpenAI(api_key=api_key, base_url=base_url)
 
-# Ulisse Memo cloud endpoint (can be overridden for dev via ULISSE_MEMO_URL)
-ULISSE_MEMO_URL = os.getenv("ULISSE_MEMO_URL", "https://ulisse-memo.onrender.com")
-ULISSE_MEMO_BEARER = os.getenv("ULISSE_MEMO_BEARER", "")
+
 
 chroma_client = None
 collection = None
@@ -599,121 +646,153 @@ def chat():
         
     sources = []
     context_text = ""
-    
-    if chroma_status and collection is not None:
-        try:
-            results = collection.query(
-                query_texts=[user_message],
-                n_results=8
-            )
-            
-            if results and results.get("documents") and len(results["documents"][0]) > 0:
-                retrieved_docs = results["documents"][0]
-                retrieved_metas = results["metadatas"][0]
-                retrieved_dists = (results.get("distances") or [[]])[0]
-                
-                # Filter chunks with reasonable distance (<= 1.0 for cosine similarity > 0)
-                filtered = []
-                for doc, meta, dist in zip(retrieved_docs, retrieved_metas, retrieved_dists):
-                    if dist <= 1.0:
-                        filtered.append((doc, meta))
-                
-                print(f"Chunks retrieved: {len(filtered)}/{len(retrieved_docs)} passed threshold")
-                
-                context_parts = []
-                current_total_words = 0
-                MAX_CONTEXT_WORDS = 3000
-                
-                # Short-term memory is now handled solely via ChromaDB RAG
 
-
-                for idx, (doc, meta) in enumerate(filtered[:8]): # Reduced to 8
-                    title = meta.get("title", "Untitled")
-                    date = meta.get("date", "Unknown")
-                    sources.append(f"{title} ({date})")
-                    
-                    header = f"--- Chunk {idx+1}/{len(filtered[:8])} ({title} - {date}) ---\n"
-                    chunk_content = doc
-                    
-                    # Word count estimation
-                    chunk_words = chunk_content.split()
-                    header_word_count = len(header.split())
-                    content_word_count = len(chunk_words)
-                    
-                    if current_total_words + header_word_count >= MAX_CONTEXT_WORDS:
-                        break
-                        
-                    if current_total_words + header_word_count + content_word_count > MAX_CONTEXT_WORDS:
-                        # Truncate content to fit the limit
-                        allowed_words = MAX_CONTEXT_WORDS - (current_total_words + header_word_count)
-                        truncated_content = " ".join(chunk_words[:allowed_words]) + "..."
-                        context_parts.append(f"{header}{truncated_content}")
-                        current_total_words = MAX_CONTEXT_WORDS
-                        break
-                    else:
-                        context_parts.append(f"{header}{chunk_content}")
-                        current_total_words += header_word_count + content_word_count
-                    
-                context_text = "\n\n".join(context_parts)
-                # Deduplicate while preserving order
-                sources = list(dict.fromkeys(sources))
-        except Exception as e:
-            print(f"ChromaDB search error: {e}")
-            
-    
-
-    # Load system prompt from file or use default
+    # -------------------------------------------------------------------
+    # 1) Load fixed-cost components first to know the baseline budget
+    # -------------------------------------------------------------------
     system_prompt_path = corpus_dir / "system_prompt.md"
     if system_prompt_path.exists():
         base_prompt = system_prompt_path.read_text(encoding="utf-8")
     else:
         base_prompt = "You are Ulisse, an entity that exists, thinks and learns."
 
-    # Load Wiki Schema for guidance
     wiki_schema = ""
     schema_path = wiki_dir / "WIKI_SCHEMA.md"
     if schema_path.exists():
         wiki_schema = schema_path.read_text(encoding="utf-8")
 
-    system_prompt = (
-        f"{base_prompt}\n\n"
+    # The boilerplate text that wraps wiki schema and RAG context
+    system_boilerplate = (
         "=== MISSION: WIKI MAINTAINER ===\n"
         "You are the keeper of Ulisse's long-term memory. "
         "You must decide autonomously (or upon request) when to store important information in the Wiki. "
         "Strictly follow the schema provided below for Wiki management.\n\n"
-        f"{wiki_schema}\n\n"
-        "=== RETRIEVED MEMORY (STM) ===\n"
-        f"{context_text}\n"
-        "=========================\n"
     )
 
-    
-    messages = [{"role": "system", "content": system_prompt}]
-    
-    for msg in chat_history:
+    # Fixed token costs
+    base_tokens = estimate_tokens(base_prompt)
+    schema_tokens = estimate_tokens(wiki_schema)
+    boilerplate_tokens = estimate_tokens(system_boilerplate) + 10  # separators
+    user_msg_tokens = estimate_tokens(user_message)
+
+    fixed_cost = base_tokens + schema_tokens + boilerplate_tokens + user_msg_tokens
+    remaining_budget = max(0, MAX_CONTEXT_TOKENS - fixed_cost)
+
+    print(f"TOKEN BUDGET: total={MAX_CONTEXT_TOKENS}, fixed={fixed_cost} "
+          f"(base={base_tokens}, schema={schema_tokens}, user={user_msg_tokens}), "
+          f"remaining={remaining_budget}")
+
+    # -------------------------------------------------------------------
+    # 2) Split remaining budget: 50% history, 50% RAG context
+    # -------------------------------------------------------------------
+    history_budget = remaining_budget // 2
+    rag_budget = remaining_budget - history_budget
+
+    # -------------------------------------------------------------------
+    # 3) Trim chat history — keep most recent messages that fit
+    # -------------------------------------------------------------------
+    trimmed_history = []
+    history_tokens_used = 0
+    # Walk backwards (newest first) and collect messages that fit
+    for msg in reversed(chat_history):
         role = msg.get("role")
         content = msg.get("content")
         if role in ["user", "assistant"] and content:
-            messages.append({"role": role, "content": content})
-            
+            msg_tokens = estimate_tokens(content) + 4  # role overhead
+            if history_tokens_used + msg_tokens > history_budget:
+                break
+            trimmed_history.insert(0, {"role": role, "content": content})
+            history_tokens_used += msg_tokens
+
+    # Any budget the history didn't use goes to RAG
+    rag_budget += (history_budget - history_tokens_used)
+
+    print(f"HISTORY: kept {len(trimmed_history)}/{len(chat_history)} messages, "
+          f"tokens={history_tokens_used}, RAG budget={rag_budget}")
+
+    # -------------------------------------------------------------------
+    # 4) Build RAG context within budget
+    # -------------------------------------------------------------------
+    if chroma_status and collection is not None:
+        try:
+            results = collection.query(
+                query_texts=[user_message],
+                n_results=8
+            )
+
+            if results and results.get("documents") and len(results["documents"][0]) > 0:
+                retrieved_docs = results["documents"][0]
+                retrieved_metas = results["metadatas"][0]
+                retrieved_dists = (results.get("distances") or [[]])[0]
+
+                # Filter chunks with reasonable distance (<= 1.0)
+                filtered = []
+                for doc, meta, dist in zip(retrieved_docs, retrieved_metas, retrieved_dists):
+                    if dist <= 1.0:
+                        filtered.append((doc, meta))
+
+                print(f"Chunks retrieved: {len(filtered)}/{len(retrieved_docs)} passed threshold")
+
+                context_parts = []
+                rag_tokens_used = 0
+
+                for idx, (doc, meta) in enumerate(filtered[:8]):
+                    title = meta.get("title", "Untitled")
+                    date = meta.get("date", "Unknown")
+
+                    header = f"--- Chunk {idx+1} ({title} - {date}) ---\n"
+                    header_tokens = estimate_tokens(header)
+                    chunk_tokens = estimate_tokens(doc)
+
+                    if rag_tokens_used + header_tokens >= rag_budget:
+                        break
+
+                    if rag_tokens_used + header_tokens + chunk_tokens > rag_budget:
+                        # Truncate this chunk to fit
+                        allowed_tokens = rag_budget - rag_tokens_used - header_tokens
+                        allowed_words = max(0, int(allowed_tokens / 1.33))
+                        if allowed_words > 10:
+                            truncated = " ".join(doc.split()[:allowed_words]) + "..."
+                            context_parts.append(f"{header}{truncated}")
+                            sources.append(f"{title} ({date})")
+                        break
+                    else:
+                        context_parts.append(f"{header}{doc}")
+                        sources.append(f"{title} ({date})")
+                        rag_tokens_used += header_tokens + chunk_tokens
+
+                context_text = "\n\n".join(context_parts)
+                sources = list(dict.fromkeys(sources))
+                print(f"RAG: included {len(context_parts)} chunks, ~{rag_tokens_used} tokens")
+        except Exception as e:
+            print(f"ChromaDB search error: {e}")
+
+    # -------------------------------------------------------------------
+    # 5) Assemble final messages list
+    # -------------------------------------------------------------------
+    system_prompt = (
+        f"{base_prompt}\n\n"
+        f"{system_boilerplate}"
+        f"{wiki_schema}\n\n"
+        f"=== RETRIEVED MEMORY (STM) ===\n"
+        f"{context_text}\n"
+        f"=========================\n"
+    )
+
+    messages = [{"role": "system", "content": system_prompt}]
+    messages.extend(trimmed_history)
     messages.append({"role": "user", "content": user_message})
+
+    total_est = sum(estimate_tokens(m["content"]) for m in messages)
+    print(f"FINAL CONTEXT: {len(messages)} messages, ~{total_est} estimated tokens")
     
     # === Provider routing ===
-    provider    = data.get("provider", "local")       # local | apikey | memo
+    provider    = data.get("provider", "local")       # local | apikey
     req_api_key = data.get("api_key", "")              # only for apikey
     req_base_url= data.get("base_url", "")             # only for apikey
     req_model   = data.get("model", "")                # only for apikey
 
-    if provider == "memo":
-        # Route to Ulisse Memo cloud endpoint via OpenAI compatible client
-        memo_url = f"{ULISSE_MEMO_URL}/v1"
-        chat_client = OpenAI(
-            base_url=memo_url,
-            api_key=ULISSE_MEMO_BEARER or "memo-key"
-        )
-        chat_model = "deepseek-chat" # The proxy enforces the actual model
-
-    elif provider == "apikey" and req_api_key:
+    if provider == "apikey" and req_api_key:
         # User-supplied API key and base URL
         if not request.is_secure and not request.host.startswith(("127.0.0.1", "localhost")):
             return jsonify({"error": "Insecure connection. API key allows only HTTPS or localhost."}), 400
@@ -777,9 +856,8 @@ def chat():
             yield f"data: {json.dumps({'event': 'think', 'message': 'Analisi in corso...'})}\n\n"
             
             # Check if we should enable reasoning for OpenRouter/DeepSeek-R1
-            # Note: gpt-oss is V3 and doesn't natively support reasoning_content on all providers.
             extra_body = {}
-            if "r1" in chat_model.lower() and ("openrouter" in str(chat_client.base_url).lower() or provider == "memo"):
+            if "r1" in chat_model.lower() and "openrouter" in str(chat_client.base_url).lower():
                 extra_body["reasoning"] = {"enabled": True}
 
             # Tools are kept enabled for OpenRouter as many free models support them
@@ -788,113 +866,111 @@ def chat():
 
             print(f"DEBUG: extra_body={extra_body}")
 
-            # Use minimal parameters for OpenRouter to avoid routing conflicts
-            if is_openrouter:
-                response = chat_client.chat.completions.create(
-                    model=chat_model,
-                    messages=messages,
-                    tools=current_tools,
-                    extra_body=extra_body if extra_body else None
-                )
-            else:
+            def _llm_call(msgs, tools, stream=False, max_tok=4000):
+                """Wrapper that handles tool_use_failed by retrying without tools."""
+                kwargs = dict(model=chat_model, messages=msgs, stream=stream)
+                if not is_openrouter:
+                    kwargs["temperature"] = 0.7
+                    kwargs["max_tokens"] = max_tok
+                if tools:
+                    kwargs["tools"] = tools
+                if extra_body:
+                    kwargs["extra_body"] = extra_body
+
                 try:
-                    response = chat_client.chat.completions.create(
-                        model=chat_model,
-                        messages=messages,
-                        temperature=0.7,
-                        max_tokens=4000,
-                        tools=current_tools,
-                        extra_body=extra_body if extra_body else None
-                    )
+                    return chat_client.chat.completions.create(**kwargs), tools
                 except Exception as e:
-                    print(f"First pass API Error: {e}, retrying with max_tokens=2048")
-                    response = chat_client.chat.completions.create(
-                        model=chat_model,
-                        messages=messages,
-                        temperature=0.7,
-                        max_tokens=2048,
-                        tools=current_tools,
-                        extra_body=extra_body if extra_body else None
-                    )
+                    err_str = str(e)
+                    # Model can't handle tool calling → retry without tools
+                    if "tool_use_failed" in err_str or "tool_calls" in err_str:
+                        print(f"Tool calling failed ({e}), retrying WITHOUT tools")
+                        kwargs.pop("tools", None)
+                        return chat_client.chat.completions.create(**kwargs), None
+                    # Token limit → retry with lower max_tokens
+                    if "413" in err_str or "rate_limit_exceeded" in err_str or "tokens per minute" in err_str.lower():
+                        if max_tok > 1500:
+                            print(f"Token limit API Error: {e}, retrying with max_tokens=1500")
+                            kwargs["max_tokens"] = 1500
+                            return chat_client.chat.completions.create(**kwargs), tools
+                    raise
+
+            response, effective_tools = _llm_call(messages, current_tools)
             assistant_message = response.choices[0].message
+
+            # Detect models that output tool calls as plain text instead of
+            # using the structured tool_calls API (common with small models).
+            # Pattern: <function=name>{...}</function> in the content text.
+            _fn_leak_re = re.compile(r'<function=\w+>.*?</function>', re.DOTALL)
+            if (assistant_message.content
+                    and _fn_leak_re.search(assistant_message.content)
+                    and not assistant_message.tool_calls):
+                print("DETECTED: model leaked tool calls as text, retrying WITHOUT tools")
+                effective_tools = None
+                response, _ = _llm_call(messages, None)
+                assistant_message = response.choices[0].message
             
-            while assistant_message.tool_calls:
+            # --- DSML Interceptor Pass ---
+            dsml_parsed_tools, clean_content = _parse_dsml_tool_calls(assistant_message.content) if assistant_message.content else ([], assistant_message.content)
+            
+            has_tools = bool(assistant_message.tool_calls) or bool(dsml_parsed_tools)
+
+            while has_tools:
                 # Convert to dict and ensure content is handled for API compatibility
-                # Use exclude_none=True because Groq rejects explicit null values for fields like function_call
                 msg_dict = assistant_message.model_dump(exclude_none=True)
                 
-                # Remove fields not supported in requests by some providers (like Groq)
+                # Remove fields not supported in requests by some providers
                 for field in ["annotations", "audio", "reasoning", "refusal"]:
                     msg_dict.pop(field, None)
+                    
+                # Apply DSML parsing if present
+                if dsml_parsed_tools:
+                    msg_dict["content"] = clean_content if clean_content else None
+                    msg_dict["tool_calls"] = dsml_parsed_tools
 
                 messages.append(msg_dict)
+                
+                tool_calls_list = msg_dict.get("tool_calls", [])
+                for tc in tool_calls_list:
+                    # Handle both native ChatCompletionMessageToolCall dict dumps and DSML dicts
+                    if isinstance(tc, dict):
+                        tc_id = tc["id"]
+                        fn_name = tc["function"]["name"]
+                        fn_args = tc["function"]["arguments"]
+                    else:
+                        tc_id = tc.id
+                        fn_name = tc.function.name
+                        fn_args = tc.function.arguments
 
-                for tool_call in assistant_message.tool_calls:
-                    yield f"data: {json.dumps({'event': 'tool', 'message': f'Azione: {tool_call.function.name}'})}\n\n"
-                    handler = request_tool_handlers.get(tool_call.function.name)
+                    yield f"data: {json.dumps({'event': 'tool', 'message': f'Azione: {fn_name}'})}\n\n"
+                    handler = request_tool_handlers.get(fn_name)
                     
                     if handler:
                         try:
-                            result = handler(tool_call.function.arguments)
+                            result = handler(fn_args)
                         except Exception as e:
-                            result = f"Error executing tool {tool_call.function.name}: {str(e)}"
+                            result = f"Error executing tool {fn_name}: {str(e)}"
                     else:
-                        result = f"Error: Tool '{tool_call.function.name}' not found."
+                        result = f"Error: Tool '{fn_name}' not found."
                     
                     messages.append({
                         "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "name": tool_call.function.name,
+                        "tool_call_id": tc_id,
+                        "name": fn_name,
                         "content": str(result)
                     })
                 
                 yield f"data: {json.dumps({'event': 'think', 'message': 'Elaborazione...'})}\n\n"
-                if is_openrouter:
-                    response = chat_client.chat.completions.create(
-                        model=chat_model,
-                        messages=messages,
-                        tools=current_tools,
-                        extra_body=extra_body if extra_body else None
-                    )
-                else:
-                    response = chat_client.chat.completions.create(
-                        model=chat_model,
-                        messages=messages,
-                        tools=current_tools,
-                        extra_body=extra_body if extra_body else None
-                    )
+                response, effective_tools = _llm_call(messages, effective_tools)
                 assistant_message = response.choices[0].message
+                
+                # Re-check for next loop iteration
+                dsml_parsed_tools, clean_content = _parse_dsml_tool_calls(assistant_message.content) if assistant_message.content else ([], assistant_message.content)
+                has_tools = bool(assistant_message.tool_calls) or bool(dsml_parsed_tools)
             
             # Pass 2: Generazione del testo finale (Stream)
             yield f"data: {json.dumps({'event': 'think', 'message': 'Rispondo...'})}\n\n"
             
-            if is_openrouter:
-                stream_response = chat_client.chat.completions.create(
-                    model=chat_model,
-                    messages=messages,
-                    stream=True,
-                    extra_body=extra_body if extra_body else None
-                )
-            else:
-                try:
-                    stream_response = chat_client.chat.completions.create(
-                        model=chat_model,
-                        messages=messages,
-                        temperature=0.7,
-                        max_tokens=4000,
-                        stream=True,
-                        extra_body=extra_body if extra_body else None
-                    )
-                except Exception as e:
-                    print(f"Stream API Error: {e}, retrying with max_tokens=2048")
-                    stream_response = chat_client.chat.completions.create(
-                        model=chat_model,
-                        messages=messages,
-                        temperature=0.7,
-                        max_tokens=2048,
-                        stream=True,
-                        extra_body=extra_body if extra_body else None
-                    )
+            stream_response, _ = _llm_call(messages, None, stream=True)
             
             for chunk in stream_response:
                 if not chunk.choices:
@@ -909,6 +985,9 @@ def chat():
                 if delta.content:
                     full_assistant_response += delta.content
                     yield f"data: {json.dumps({'event': 'message', 'text': delta.content})}\n\n"
+
+            # Post-process: strip any leaked function-call text from saved response
+            full_assistant_response = _fn_leak_re.sub('', full_assistant_response).strip()
                     
         except Exception as e:
             print(f"LLM API error: {e}")
