@@ -21,11 +21,8 @@ from chromadb.utils import embedding_functions
 from openai import OpenAI
 import uuid
 from werkzeug.utils import secure_filename
-from threading import local
 from functools import wraps
 import time
-
-agno_context = local()
 
 # Simple Rate Limiter
 RATE_LIMITS = {}
@@ -362,33 +359,35 @@ extra_tool_handlers.update({
 })
 
 # --- Agno Agent Delegation Tool ---
-def delegate_to_agno_agent(args):
-    try:
-        import json
-        data = json.loads(args)
-        task = data.get("task", "")
-        if not task:
-            return "No task provided."
-        
-        from webapp.backend.ulisse_agno import get_ulisse_agent
-        
-        # Recupera la configurazione della sessione dal thread-local context
-        config = getattr(agno_context, 'config', {})
-        
-        # Inizializza l'agente con il modello scelto dall'utente
-        agent = get_ulisse_agent(
-            model_id=config.get("model"),
-            api_key=config.get("api_key"),
-            base_url=config.get("base_url")
-        )
-        
-        # Esegui l'agente Agno in modo sincrono
-        response = agent.run(task)
-        if hasattr(response, "content"):
-            return f"Agno Agent Response:\n{response.content}"
-        return f"Agno Agent Response:\n{str(response)}"
-    except Exception as e:
-        return f"Error running Agno agent: {str(e)}"
+def _make_agno_handler(agno_config):
+    """Factory that returns a delegate_to_agno_agent handler with the given
+    config bound via closure.  This avoids any shared mutable state
+    (threading.local, globals) and is safe for concurrent requests."""
+    def delegate_to_agno_agent(args):
+        try:
+            import json
+            data = json.loads(args)
+            task = data.get("task", "")
+            if not task:
+                return "No task provided."
+
+            from webapp.backend.ulisse_agno import get_ulisse_agent
+
+            # Inizializza l'agente con il modello dalla config legata a QUESTA request
+            agent = get_ulisse_agent(
+                model_id=agno_config.get("model"),
+                api_key=agno_config.get("api_key"),
+                base_url=agno_config.get("base_url")
+            )
+
+            # Esegui l'agente Agno in modo sincrono
+            response = agent.run(task)
+            if hasattr(response, "content"):
+                return f"Agno Agent Response:\n{response.content}"
+            return f"Agno Agent Response:\n{str(response)}"
+        except Exception as e:
+            return f"Error running Agno agent: {str(e)}"
+    return delegate_to_agno_agent
 
 agno_tools = [
     {
@@ -408,9 +407,8 @@ agno_tools = [
 ]
 
 extra_tools.extend(agno_tools)
-extra_tool_handlers.update({
-    "delegate_to_agno_agent": delegate_to_agno_agent
-})
+# NOTE: delegate_to_agno_agent is NOT registered here globally anymore.
+# A request-scoped handler is created inside generate() via _make_agno_handler().
 
 
 # ---------------------------------------------------------------------------
@@ -758,13 +756,16 @@ def chat():
     def generate():
         nonlocal session_data, messages, sources
         
-        # Salva la configurazione del modello nel contesto del thread corrente
-        # così che i tool handler (come delegate_to_agno_agent) possano accedervi.
-        agno_context.config = {
+        # Build request-scoped tool handlers dict.
+        # The Agno delegate gets the current request's model config via closure
+        # — no shared mutable state, fully thread-safe.
+        request_agno_config = {
             "model": chat_model,
             "api_key": chat_client.api_key,
             "base_url": str(chat_client.base_url)
         }
+        request_tool_handlers = dict(extra_tool_handlers)
+        request_tool_handlers["delegate_to_agno_agent"] = _make_agno_handler(request_agno_config)
         
         # Invia l'inizio della sessione
         yield f"data: {json.dumps({'event': 'session', 'session_id': session_id, 'session_title': session_data.get('title', 'Nuova Chat'), 'sources': sources})}\n\n"
@@ -830,7 +831,7 @@ def chat():
 
                 for tool_call in assistant_message.tool_calls:
                     yield f"data: {json.dumps({'event': 'tool', 'message': f'Azione: {tool_call.function.name}'})}\n\n"
-                    handler = extra_tool_handlers.get(tool_call.function.name)
+                    handler = request_tool_handlers.get(tool_call.function.name)
                     
                     if handler:
                         try:
