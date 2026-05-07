@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+import tiktoken
 
 from agno.agent import Agent
 from agno.db.sqlite import SqliteDb
@@ -57,6 +58,21 @@ project_root = script_dir.parent.parent
 corpus_dir = project_root / os.getenv("CORPUS_PATH", "corpus")
 wiki_dir = corpus_dir / "wiki"
 wiki_pages_dir = wiki_dir / "pages"
+
+# Cache the encoder
+_token_enc = None
+
+def estimate_tokens(text: str) -> int:
+    """Precise token counting using tiktoken (cl100k_base)."""
+    global _token_enc
+    if not text:
+        return 0
+    if _token_enc is None:
+        try:
+            _token_enc = tiktoken.get_encoding("cl100k_base")
+        except Exception:
+            return int(len(text.split()) * 1.33)
+    return len(_token_enc.encode(text))
 
 # ==========================================
 # 1. Definisci i Tool di Ulisse per Agno
