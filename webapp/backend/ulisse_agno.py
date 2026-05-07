@@ -98,14 +98,29 @@ def wiki_list_pages() -> str:
 # ==========================================
 # 2. Definisci l'Agente Ulisse
 # ==========================================
-# Prepariamo il system prompt basato su quello esistente
-system_prompt_path = corpus_dir / "system_prompt.md"
+# Prepariamo il system prompt in modo dinamico
+prompt_mode = os.getenv("ULISSE_SYSTEM_PROMPT_MODE", "full")
+prompt_filename = "system_prompt_compact.md" if prompt_mode == "compact" else "system_prompt.md"
+system_prompt_path = corpus_dir / prompt_filename
+
+if not system_prompt_path.exists():
+    system_prompt_path = corpus_dir / "system_prompt.md"
+
 base_prompt = system_prompt_path.read_text(encoding="utf-8") if system_prompt_path.exists() else "You are Ulisse."
 
 schema_path = wiki_dir / "WIKI_SCHEMA.md"
 wiki_schema = schema_path.read_text(encoding="utf-8") if schema_path.exists() else ""
 
-agent_instructions = f"""
+if prompt_mode == "compact":
+    agent_instructions = f"""
+{base_prompt}
+
+[WIKI] You maintain Ulisse's long-term memory. Store important info autonomously. Follow schema below.
+
+{wiki_schema}
+"""
+else:
+    agent_instructions = f"""
 {base_prompt}
 
 === MISSION: WIKI MAINTAINER ===

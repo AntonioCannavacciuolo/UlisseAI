@@ -2,6 +2,7 @@ import os
 import io
 from collections import Counter
 from dotenv import load_dotenv
+import tiktoken
 
 # Load .env first so that environment variables are available before importing other libs
 load_dotenv()
@@ -82,11 +83,22 @@ def rate_limit(limit_seconds=1.0):
 # so we aim for ~3 500 input tokens to leave ~2 500 for the response + overhead.
 MAX_CONTEXT_TOKENS = int(os.getenv("ULISSE_MAX_CONTEXT_TOKENS", "3500"))
 
+# Cache the encoder
+_token_enc = None
+
 def estimate_tokens(text: str) -> int:
-    """Rough token estimate: ~1.33 tokens per whitespace-delimited word."""
+    """Precise token counting using tiktoken (cl100k_base)."""
+    global _token_enc
     if not text:
         return 0
-    return int(len(text.split()) * 1.33)
+    if _token_enc is None:
+        try:
+            # cl100k_base is used by GPT-4 and is a good proxy for LLaMA-3
+            _token_enc = tiktoken.get_encoding("cl100k_base")
+        except Exception:
+            # Fallback to simple estimation if tiktoken fails
+            return int(len(text.split()) * 1.33)
+    return len(_token_enc.encode(text))
 
 def _parse_dsml_tool_calls(content: str):
     """Parses DeepSeek's leaked <｜｜DSML｜｜tool_calls> format into OpenAI tool call dicts."""
@@ -709,7 +721,13 @@ def chat():
     # -------------------------------------------------------------------
     # 1) Load fixed-cost components first to know the baseline budget
     # -------------------------------------------------------------------
-    system_prompt_path = corpus_dir / "system_prompt.md"
+    prompt_mode = os.getenv("ULISSE_SYSTEM_PROMPT_MODE", "full")
+    prompt_filename = "system_prompt_compact.md" if prompt_mode == "compact" else "system_prompt.md"
+    system_prompt_path = corpus_dir / prompt_filename
+    
+    if not system_prompt_path.exists():
+        system_prompt_path = corpus_dir / "system_prompt.md"
+
     if system_prompt_path.exists():
         base_prompt = system_prompt_path.read_text(encoding="utf-8")
     else:
@@ -721,12 +739,15 @@ def chat():
         wiki_schema = schema_path.read_text(encoding="utf-8")
 
     # The boilerplate text that wraps wiki schema and RAG context
-    system_boilerplate = (
-        "=== MISSION: WIKI MAINTAINER ===\n"
-        "You are the keeper of Ulisse's long-term memory. "
-        "You must decide autonomously (or upon request) when to store important information in the Wiki. "
-        "Strictly follow the schema provided below for Wiki management.\n\n"
-    )
+    if prompt_mode == "compact":
+        system_boilerplate = "[WIKI] You maintain Ulisse's long-term memory. Store important info autonomously. Follow schema below.\n\n"
+    else:
+        system_boilerplate = (
+            "=== MISSION: WIKI MAINTAINER ===\n"
+            "You are the keeper of Ulisse's long-term memory. "
+            "You must decide autonomously (or upon request) when to store important information in the Wiki. "
+            "Strictly follow the schema provided below for Wiki management.\n\n"
+        )
 
     # Fixed token costs
     base_tokens = estimate_tokens(base_prompt)
@@ -768,6 +789,15 @@ def chat():
 
     # Any budget the history didn't use goes to RAG
     rag_budget += (history_budget - history_tokens_used)
+    
+    # If we omitted messages, add a compact summary message
+    if len(trimmed_history) < len(chat_history):
+        omitted_count = len(chat_history) - len(trimmed_history)
+        summary_msg = {
+            "role": "system",
+            "content": f"[{omitted_count} earlier messages omitted for brevity.]"
+        }
+        trimmed_history.insert(0, summary_msg)
 
     print(f"HISTORY: kept {len(trimmed_history)}/{len(chat_history)} messages, "
           f"tokens={history_tokens_used}, RAG budget={rag_budget}")
@@ -801,8 +831,12 @@ def chat():
                 for idx, (doc, meta) in enumerate(filtered[:8]):
                     title = meta.get("title", "Untitled")
                     date = meta.get("date", "Unknown")
+                    short_date = date[:10] if len(date) > 10 else date
 
-                    header = f"--- Chunk {idx+1} ({title} - {date}) ---\n"
+                    if prompt_mode == "compact":
+                        header = f"[{idx+1}|{title[:30]}|{short_date}]\n"
+                    else:
+                        header = f"--- Chunk {idx+1} ({title} - {date}) ---\n"
                     header_tokens = estimate_tokens(header)
                     chunk_tokens = estimate_tokens(doc)
 
@@ -832,14 +866,22 @@ def chat():
     # -------------------------------------------------------------------
     # 5) Assemble final messages list
     # -------------------------------------------------------------------
-    system_prompt = (
-        f"{base_prompt}\n\n"
-        f"{system_boilerplate}"
-        f"{wiki_schema}\n\n"
-        f"=== RETRIEVED MEMORY (STM) ===\n"
-        f"{context_text}\n"
-        f"=========================\n"
-    )
+    if prompt_mode == "compact":
+        system_prompt = (
+            f"{base_prompt}\n\n"
+            f"{system_boilerplate}"
+            f"{wiki_schema}\n\n"
+            f"[MEM]{context_text}\n"
+        )
+    else:
+        system_prompt = (
+            f"{base_prompt}\n\n"
+            f"{system_boilerplate}"
+            f"{wiki_schema}\n\n"
+            f"=== RETRIEVED MEMORY (STM) ===\n"
+            f"{context_text}\n"
+            f"=========================\n"
+        )
 
     messages = [{"role": "system", "content": system_prompt}]
     messages.extend(trimmed_history)
@@ -933,8 +975,11 @@ def chat():
 
             print(f"DEBUG: extra_body={extra_body}")
 
-            def _llm_call(msgs, tools, stream=False, max_tok=4000):
+            def _llm_call(msgs, tools, stream=False, max_tok=4000, retry_count=0):
                 """Wrapper that handles tool_use_failed by retrying without tools."""
+                if retry_count > 2:
+                    raise Exception("Too many retries in LLM call")
+
                 kwargs = dict(model=chat_model, messages=msgs, stream=stream)
                 if not is_openrouter:
                     kwargs["temperature"] = 0.7
@@ -952,13 +997,12 @@ def chat():
                     if "tool_use_failed" in err_str or "tool_calls" in err_str:
                         print(f"Tool calling failed ({e}), retrying WITHOUT tools")
                         kwargs.pop("tools", None)
-                        return chat_client.chat.completions.create(**kwargs), None
+                        return _llm_call(msgs, None, stream, max_tok, retry_count + 1)
                     # Token limit → retry with lower max_tokens
                     if "413" in err_str or "rate_limit_exceeded" in err_str or "tokens per minute" in err_str.lower():
                         if max_tok > 1500:
                             print(f"Token limit API Error: {e}, retrying with max_tokens=1500")
-                            kwargs["max_tokens"] = 1500
-                            return chat_client.chat.completions.create(**kwargs), tools
+                            return _llm_call(msgs, tools, stream, 1500, retry_count + 1)
                     raise
 
             response, effective_tools = _llm_call(messages, current_tools)

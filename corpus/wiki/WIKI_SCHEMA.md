@@ -24,4 +24,4 @@ You are the maintainer of this Wiki. Your goal is to build a structured, interli
 - Every page should have a "Sources" section at the bottom referencing the session ID or raw data.
 
 ## Goal
-Toni handles the sourcing and exploration; you handle the bookkeeping, summarizing, and cross-referencing.
+The user handles the sourcing and exploration; you handle the bookkeeping, summarizing, and cross-referencing.
