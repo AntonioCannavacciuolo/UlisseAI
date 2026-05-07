@@ -13,6 +13,9 @@ try:
 except ImportError:
     DeepSeek = None
 
+import chromadb
+from chromadb.utils import embedding_functions
+
 try:
     from agno.tools.websearch import WebSearchTools
 except ImportError:
@@ -110,6 +113,49 @@ def wiki_list_pages() -> str:
     except Exception as e:
         return f"Wiki list error: {str(e)}"
 
+def query_short_term_memory(query: str) -> str:
+    """Queries the Short-Term Memory (past conversations) to retrieve relevant context."""
+    try:
+        # Initialize ChromaDB client (same as app.py)
+        # Using a relative path from project_root
+        chroma_dir = project_root / "vectordb" / "chroma"
+        client = chromadb.PersistentClient(path=str(chroma_dir))
+        
+        ef = embedding_functions.SentenceTransformerEmbeddingFunction(
+            model_name="all-MiniLM-L6-v2"
+        )
+        
+        collection = client.get_or_create_collection(
+            name="ulisse_brain",
+            embedding_function=ef
+        )
+        
+        results = collection.query(
+            query_texts=[query],
+            n_results=5
+        )
+        
+        if not results or not results.get("documents") or len(results["documents"][0]) == 0:
+            return "No relevant memories found."
+            
+        docs = results["documents"][0]
+        metas = results["metadatas"][0]
+        dists = (results.get("distances") or [[]])[0]
+        
+        output = []
+        for doc, meta, dist in zip(docs, metas, dists):
+            if dist <= 1.2:
+                title = meta.get("title", "Untitled")
+                date = meta.get("date", "Unknown")
+                output.append(f"--- Memory ({title} - {date}) ---\n{doc}")
+                
+        if not output:
+            return "No memories passed the relevance threshold."
+            
+        return "\n\n".join(output)
+    except Exception as e:
+        return f"Memory query error: {str(e)}"
+
 
 # ==========================================
 # 2. Definisci l'Agente Ulisse
@@ -179,6 +225,7 @@ base_tools = [
     wiki_read_page,
     wiki_write_page,
     wiki_list_pages,
+    query_short_term_memory,
     Workspace(str(project_root), allowed=["read", "list", "search", "write", "edit", "delete", "shell"])
 ]
 

@@ -429,8 +429,47 @@ def native_list_files(args):
                 files.append(f"{prefix}{rel}")
             return "\n".join(files)
         return f"Directory not found: {directory}"
+        return f"List error: {str(e)}"
     except Exception as e:
         return f"List error: {str(e)}"
+
+def native_query_memory(args):
+    """Cerca nelle conversazioni passate (Short-Term Memory)."""
+    try:
+        import json
+        data = json.loads(args)
+        query = data.get("query", "")
+        if not query:
+            return "Error: No query provided."
+            
+        if not chroma_status or collection is None:
+            return "Error: Memory system (ChromaDB) is not initialized."
+            
+        results = collection.query(
+            query_texts=[query],
+            n_results=5
+        )
+        
+        if not results or not results.get("documents") or len(results["documents"][0]) == 0:
+            return "No relevant memories found for this query."
+            
+        docs = results["documents"][0]
+        metas = results["metadatas"][0]
+        dists = (results.get("distances") or [[]])[0]
+        
+        output = []
+        for doc, meta, dist in zip(docs, metas, dists):
+            if dist <= 1.2: # Slightly more permissive than the automatic RAG
+                title = meta.get("title", "Untitled")
+                date = meta.get("date", "Unknown")
+                output.append(f"--- Memory ({title} - {date}) ---\n{doc}")
+                
+        if not output:
+            return "No memories passed the relevance threshold."
+            
+        return "\n\n".join(output)
+    except Exception as e:
+        return f"Memory query error: {str(e)}"
 
 native_file_tools = [
     {
@@ -459,13 +498,28 @@ native_file_tools = [
                 }
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "native_query_memory",
+            "description": "Cerca nelle conversazioni passate e nelle preferenze dell'utente (Short-Term Memory / RAG).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "La stringa di ricerca per trovare contesti rilevanti."}
+                },
+                "required": ["query"]
+            }
+        }
     }
 ]
 
 extra_tools.extend(native_file_tools)
 extra_tool_handlers.update({
     "native_read_file": native_read_file,
-    "native_list_files": native_list_files
+    "native_list_files": native_list_files,
+    "native_query_memory": native_query_memory
 })
 
 # --- Agno Agent Delegation Tool ---
@@ -490,8 +544,13 @@ def _make_agno_handler(agno_config):
                 base_url=agno_config.get("base_url")
             )
 
+            # Prepend retrieved context to the task so Agno has the same knowledge
+            full_task = task
+            if context_text:
+                full_task = f"Context from previous conversations (Short-Term Memory):\n{context_text}\n\nTask: {task}"
+
             # Esegui l'agente Agno in modo sincrono
-            response = agent.run(task)
+            response = agent.run(full_task)
             
             output = ""
             # Capture reasoning if present (passed back to the API/Main Agent)
@@ -871,6 +930,9 @@ def chat():
             f"{base_prompt}\n\n"
             f"{system_boilerplate}"
             f"{wiki_schema}\n\n"
+            f"=== SHORT-TERM MEMORY (STM) ===\n"
+            f"The following context was automatically retrieved based on your last message. "
+            f"Use it to maintain continuity. If you need more info, use 'native_query_memory'.\n\n"
             f"[MEM]{context_text}\n"
         )
     else:
@@ -878,9 +940,12 @@ def chat():
             f"{base_prompt}\n\n"
             f"{system_boilerplate}"
             f"{wiki_schema}\n\n"
-            f"=== RETRIEVED MEMORY (STM) ===\n"
+            f"=== RETRIEVED SHORT-TERM MEMORY (STM) ===\n"
+            f"Below is the relevant context from previous conversations, retrieved automatically. "
+            f"Consider this information as part of your current knowledge. "
+            f"If the information is insufficient, use the 'native_query_memory' tool to search further.\n\n"
             f"{context_text}\n"
-            f"=========================\n"
+            f"==========================================\n"
         )
 
     messages = [{"role": "system", "content": system_prompt}]
