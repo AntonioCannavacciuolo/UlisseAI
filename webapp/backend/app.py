@@ -480,8 +480,15 @@ def _make_agno_handler(agno_config):
 
             # Esegui l'agente Agno in modo sincrono
             response = agent.run(task)
+            
+            output = ""
+            # Capture reasoning if present (passed back to the API/Main Agent)
+            if hasattr(response, "reasoning") and response.reasoning:
+                output += f"<think>\n{response.reasoning}\n</think>\n\n"
+            
             if hasattr(response, "content"):
-                return f"Agno Agent Response:\n{response.content}"
+                output += response.content
+                return f"Agno Agent Response:\n{output}"
             return f"Agno Agent Response:\n{str(response)}"
         except Exception as e:
             return f"Error running Agno agent: {str(e)}"
@@ -753,7 +760,10 @@ def chat():
             msg_tokens = estimate_tokens(content) + 4  # role overhead
             if history_tokens_used + msg_tokens > history_budget:
                 break
-            trimmed_history.insert(0, {"role": role, "content": content})
+            msg_to_add = {"role": role, "content": content}
+            if msg.get("reasoning_content"):
+                msg_to_add["reasoning_content"] = msg["reasoning_content"]
+            trimmed_history.insert(0, msg_to_add)
             history_tokens_used += msg_tokens
 
     # Any budget the history didn't use goes to RAG
@@ -906,6 +916,7 @@ def chat():
         yield f"data: {json.dumps({'event': 'session', 'session_id': session_id, 'session_title': session_data.get('title', 'Nuova Chat'), 'sources': sources})}\n\n"
         
         full_assistant_response = ""
+        full_assistant_reasoning = ""
         
         try:
             # Pass 1: Tool Routing
@@ -952,6 +963,12 @@ def chat():
 
             response, effective_tools = _llm_call(messages, current_tools)
             assistant_message = response.choices[0].message
+            
+            # Capture and yield reasoning content if present during tool calling phase
+            msg_reasoning = getattr(assistant_message, 'reasoning_content', None) or (assistant_message.model_dump().get('reasoning_content') if hasattr(assistant_message, 'model_dump') else None)
+            if msg_reasoning:
+                full_assistant_reasoning += msg_reasoning
+                yield f"data: {json.dumps({'event': 'think', 'message': msg_reasoning, 'append': True})}\n\n"
 
             # Detect models that output tool calls as plain text instead of
             # using the structured tool_calls API (common with small models).
@@ -981,8 +998,12 @@ def chat():
                         msg_dict["content"] = None
                 
                 # Remove fields not supported in requests by some providers
-                for field in ["annotations", "audio", "reasoning", "refusal"]:
+                for field in ["annotations", "audio", "refusal"]:
                     msg_dict.pop(field, None)
+                
+                # IMPORTANT: DeepSeek-R1/OpenRouter REQUIRE reasoning_content to be passed back
+                if msg_reasoning:
+                    msg_dict["reasoning_content"] = msg_reasoning
                     
                 # Apply DSML parsing if present
                 if dsml_parsed_tools:
@@ -1025,6 +1046,12 @@ def chat():
                 response, effective_tools = _llm_call(messages, effective_tools)
                 assistant_message = response.choices[0].message
                 
+                # Capture and yield reasoning content if present during tool calling loop
+                msg_reasoning = getattr(assistant_message, 'reasoning_content', None) or (assistant_message.model_dump().get('reasoning_content') if hasattr(assistant_message, 'model_dump') else None)
+                if msg_reasoning:
+                    full_assistant_reasoning += msg_reasoning
+                    yield f"data: {json.dumps({'event': 'think', 'message': msg_reasoning, 'append': True})}\n\n"
+                
                 # Re-check for next loop iteration
                 dsml_parsed_tools, clean_content = _parse_dsml_tool_calls(assistant_message.content) if assistant_message.content else ([], assistant_message.content)
                 has_tools = bool(assistant_message.tool_calls) or bool(dsml_parsed_tools)
@@ -1039,9 +1066,9 @@ def chat():
                     continue
                 delta = chunk.choices[0].delta
                 
-                # Check for reasoning_content (OpenRouter/DeepSeek-R1)
                 reasoning = getattr(delta, 'reasoning_content', None) or (delta.model_dump().get('reasoning_content') if hasattr(delta, 'model_dump') else None)
                 if reasoning:
+                    full_assistant_reasoning += reasoning
                     yield f"data: {json.dumps({'event': 'think', 'message': reasoning, 'append': True})}\n\n"
 
                 if delta.content:
@@ -1092,12 +1119,16 @@ def chat():
             "content": user_message,
             "timestamp": timestamp
         })
-        session_data["messages"].append({
+        assistant_msg = {
             "role": "assistant",
             "content": full_assistant_response,
             "timestamp": timestamp,
             "sources": sources
-        })
+        }
+        if full_assistant_reasoning:
+            assistant_msg["reasoning_content"] = full_assistant_reasoning
+            
+        session_data["messages"].append(assistant_msg)
         session_data["updated_at"] = timestamp
         
         # Save session

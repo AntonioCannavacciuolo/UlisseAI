@@ -8,6 +8,11 @@ from agno.os import AgentOS
 from agno.tools.workspace import Workspace
 from agno.models.openai import OpenAIChat
 try:
+    from agno.models.deepseek import DeepSeek
+except ImportError:
+    DeepSeek = None
+
+try:
     from agno.tools.websearch import WebSearchTools
 except ImportError:
     WebSearchTools = None
@@ -163,10 +168,16 @@ def get_ulisse_agent(model_id=None, api_key=None, base_url=None):
     m_key = api_key or default_key
     m_url = base_url or default_url
 
-    # In Agno, OpenAIChat is a generic provider for OpenAI-compatible APIs
-    return Agent(
-        name="Ulisse",
-        model=OpenAIChat(
+    # Use native DeepSeek class if available and it's a deepseek model
+    if DeepSeek and ("deepseek" in m_id.lower() or "deepseek" in m_url.lower()):
+        model = DeepSeek(
+            id=m_id,
+            api_key=m_key,
+            base_url=m_url,
+        )
+    else:
+        # Fallback to OpenAIChat
+        model = OpenAIChat(
             id=m_id,
             api_key=m_key,
             base_url=m_url,
@@ -177,7 +188,11 @@ def get_ulisse_agent(model_id=None, api_key=None, base_url=None):
                 "tool": "tool",
                 "model": "assistant"
             }
-        ),
+        )
+
+    return Agent(
+        name="Ulisse",
+        model=model,
         description="Ulisse AI - L'assistente con memoria a lungo termine.",
         instructions=agent_instructions,
         tools=all_tools,
@@ -185,6 +200,7 @@ def get_ulisse_agent(model_id=None, api_key=None, base_url=None):
         add_history_to_context=True,
         num_history_runs=5,
         system_message_role="system",
+        reasoning=False,
     )
 
 # Default agent instance
