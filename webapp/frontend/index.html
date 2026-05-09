@@ -2168,6 +2168,13 @@
                                         <span class="prov-desc">OpenAI, DeepSeek, Anthropic…</span>
                                     </span>
                                 </button>
+                                <button class="provider-option" data-provider="ulisse_memo">
+                                    <span class="prov-icon">🧠</span>
+                                    <span class="prov-label">
+                                        <span class="prov-name">Ulisse Memo v1</span>
+                                        <span class="prov-desc">MSA-4B Local with persistent memory</span>
+                                    </span>
+                                </button>
 
                             </div>
                         </div>
@@ -3141,7 +3148,8 @@
         // ================================================================
         const PROVIDERS = {
             local: { label: 'LLM Locale', badgeClass: 'local', btnClass: 'active-local' },
-            apikey: { label: 'API Key', badgeClass: 'apikey', btnClass: 'active-apikey' }
+            apikey: { label: 'API Key', badgeClass: 'apikey', btnClass: 'active-apikey' },
+            ulisse_memo: { label: 'Memo v1', badgeClass: 'memo', btnClass: 'active-memo' }
         };
 
         let currentProvider = localStorage.getItem('ulisse_provider') || 'local';
@@ -3188,11 +3196,30 @@
             });
         }
 
-        function selectProvider(provider) {
+        async function selectProvider(provider) {
             currentProvider = provider;
             localStorage.setItem('ulisse_provider', provider);
             applyProviderUI(provider);
             providerDropdown.classList.remove('open');
+
+            if (provider === 'ulisse_memo') {
+                try {
+                    const resp = await fetch('/msa/status');
+                    const status = await resp.json();
+                    
+                    if (!status.has_cuda) {
+                        appendSystemNotice('⚠️ Warning: MSA-4B is running on CPU. Performance will be limited. Consider using a GPU provider.');
+                    }
+                    
+                    // Check if memory bank exists/needs indexing
+                    // For now, we'll just offer a manual trigger in the notice if it's the first time
+                    if (!status.is_loaded) {
+                        appendSystemNotice('🧠 Ulisse Memo v1 selected. The model will load on your first message.');
+                    }
+                } catch (err) {
+                    console.error('Error checking MSA status:', err);
+                }
+            }
         }
 
         providerBtn.addEventListener('click', e => {

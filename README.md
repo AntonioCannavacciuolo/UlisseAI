@@ -177,6 +177,7 @@ In the chat interface, next to the **Send** button you'll find a 🌐 **network 
 |:---|:---:|:---|
 | **LLM Locale** | 💻 | Connects to a local model (Ollama, LM Studio, etc.). Uses `DEEPSEEK_BASE_URL` / `DEEPSEEK_API_KEY` from `.env` |
 | **API Key** | 🔑 | Enter any provider's Base URL, API Key, and model name directly from the UI. Saved in `localStorage` |
+| **Ulisse Memo v1** | 🧠 | **[EXPERIMENTAL]** Local MSA-4B model with persistent memory bank. (Under active development) |
 
 
 > Your choice is **persisted in the browser** across reloads.
@@ -260,7 +261,7 @@ Ulisse operates using a specialized system prompt located in `corpus/system_prom
 <td>
 
 **Active Development** — Functional and in testing phase.<br/>
-Contributions, bug reports, and ideas are welcome!
+**Note:** The "Ulisse Memo v1" (MSA-4B) mode is currently in **Beta/Development phase**. Expect high VRAM usage and potential instabilities. Contributions, bug reports, and ideas are welcome!
 
 </td>
 </tr>

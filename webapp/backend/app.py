@@ -161,6 +161,11 @@ except ImportError:
 
 app = Flask(__name__)
 CORS(app)
+import torch
+
+# --- MSA Integration ---
+from msa_provider import msa_manager
+from memory_indexer import indexer
 
 def get_path_from_env(env_var, default_folder):
     env_path = os.getenv(env_var)
@@ -727,6 +732,30 @@ def save_conversation():
 def get_session_path(session_id):
     return sessions_dir / f"{secure_filename(str(session_id))}.json"
 
+# ================================================================
+#  MSA MEMORY ENDPOINTS
+# ================================================================
+
+@app.route('/msa/index', methods=['POST'])
+def msa_index():
+    try:
+        # Run indexing
+        indexer.build_memory_bank()
+        return jsonify({"status": "success", "message": "Indexing complete"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/msa/status', methods=['GET'])
+def msa_status():
+    is_loaded = msa_manager.model is not None
+    has_cuda = torch.cuda.is_available()
+    return jsonify({
+        "is_loaded": is_loaded,
+        "device": msa_manager.device,
+        "has_cuda": has_cuda,
+        "is_loading": msa_manager.is_loading
+    })
+
 @app.route("/chat", methods=["POST"])
 @rate_limit(1.0)
 def chat():
@@ -955,13 +984,18 @@ def chat():
     total_est = sum(estimate_tokens(m["content"]) for m in messages)
     print(f"FINAL CONTEXT: {len(messages)} messages, ~{total_est} estimated tokens")
     
-    # === Provider routing ===
-    provider    = data.get("provider", "local")       # local | apikey
-    req_api_key = data.get("api_key", "")              # only for apikey
-    req_base_url= data.get("base_url", "")             # only for apikey
-    req_model   = data.get("model", "")                # only for apikey
-
-    if provider == "apikey" and req_api_key:
+    # === MSA Provider handling ===
+    if provider == "ulisse_memo":
+        # Lazy load model on first use
+        if msa_manager.model is None:
+            print("MSA: First use, loading model...")
+            msa_manager.load_model()
+            msa_manager.load_memory_bank()
+        
+        chat_model = "EverMind-AI/MSA-4B"
+        # We'll use the generator logic below but bypass OpenAI client
+        chat_client = None 
+    elif provider == "apikey" and req_api_key:
         # User-supplied API key and base URL
         try:
             target_url = req_base_url or "https://api.openai.com/v1"
@@ -1013,8 +1047,8 @@ def chat():
         # — no shared mutable state, fully thread-safe.
         request_agno_config = {
             "model": chat_model,
-            "api_key": chat_client.api_key,
-            "base_url": str(chat_client.base_url)
+            "api_key": chat_client.api_key if chat_client else "msa",
+            "base_url": str(chat_client.base_url) if chat_client else "local"
         }
         request_tool_handlers = dict(extra_tool_handlers)
         request_tool_handlers["delegate_to_agno_agent"] = _make_agno_handler(request_agno_config)
@@ -1055,7 +1089,23 @@ def chat():
                     kwargs["extra_body"] = extra_body
 
                 try:
-                    return chat_client.chat.completions.create(**kwargs), tools
+                    if provider == "ulisse_memo":
+                        # Convert messages to MSA format if needed (usually just standard list of dicts)
+                        # We use the native transformer/tokenizer generate
+                        res = msa_manager.generate(msgs, tools=tools)
+                        
+                        # Mock the OpenAI response object structure
+                        class MockChoice:
+                            def __init__(self, content, tool_calls):
+                                self.message = type('obj', (object,), {'content': content, 'tool_calls': tool_calls, 'model_dump': lambda: {'content': content, 'tool_calls': tool_calls}})
+                        
+                        class MockResponse:
+                            def __init__(self, content, tool_calls):
+                                self.choices = [MockChoice(content, tool_calls)]
+                        
+                        return MockResponse(res.get("content"), res.get("tool_calls")), tools
+                    else:
+                        return chat_client.chat.completions.create(**kwargs), tools
                 except Exception as e:
                     err_str = str(e)
                     # Model can't handle tool calling → retry without tools
